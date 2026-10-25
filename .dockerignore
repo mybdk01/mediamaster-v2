@@ -1,0 +1,13 @@
+.git
+.github
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+docs
+img
+static/img/wechat_qr.jpg
+README.md
+CHANGELOG.md
