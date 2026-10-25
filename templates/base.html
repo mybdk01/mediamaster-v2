@@ -1,0 +1,705 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}影视订阅管理系统{% endblock %}</title>
+    <link rel="shortcut icon" href="/static/img/favicon.ico" type="image/x-icon">
+    <link href="/static/css/bootstrap.css" rel="stylesheet">
+    <link href="/static/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <script src="/static/js/jquery.min.js"></script>
+    <link href="/static/css/variables.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+    <link href="/static/css/page-styles.css" rel="stylesheet">
+    <link href="/static/css/ui-components.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Toast 消息通知 -->
+    <div class="toast" id="toast" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1200;">
+        <div class="toast-header">
+            <strong class="me-auto">系统提示</strong>
+            <small>现在</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="toastMessage" style="text-align: center;">
+            默认消息
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+        <div class="container-fluid">
+            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <!-- 移动端顶栏操作区：主题切换 + 用户下拉菜单 -->
+            <div class="topbar-actions d-md-none ms-auto">
+                <button id="topbarThemeToggleBtn" class="topbar-icon-btn" title="切换日间/夜间模式">
+                    <span class="icon-sun">&#9728;</span>
+                    <span class="icon-moon" style="display:none;">&#9790;</span>
+                </button>
+                <div class="dropdown">
+                    <button class="topbar-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="用户信息">
+                        <i class="bi bi-person-circle"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end topbar-dropdown-menu">
+                        <li class="dropdown-header d-flex align-items-center gap-2">
+                            <img src="{{ avatar_url }}" alt="avatar" class="topbar-avatar-dropdown">
+                            <span class="nickname">{{ nickname }}</span>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="topbar-open-profile">编辑资料</a></li>
+                        <li class="d-md-none"><a class="dropdown-item" href="/docs" target="_blank">产品文档</a></li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center gap-2" href="#" id="topbar-open-version-modal">
+                                关于程序
+                                <img class="new-version" id="topbar-new-version-indicator" style="display: none;" src="/static/img/new.png" alt="新版本">
+                            </a>
+                        </li>
+                        <li><a class="dropdown-item" href="{{ url_for('logout') }}">退出登录</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar offcanvas offcanvas-start" tabindex="-1" aria-labelledby="sidebarMenuLabel">
+                <div class="offcanvas-header">
+                    <h5 class="offcanvas-title" id="searchOffcanvasLabel">菜单</h5>
+                    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="position-sticky sidebar-sticky">
+                    <div class="logo">
+                        <a class="navbar-brand" href="/">
+                            <img src="/static/img/favicon.ico" alt="Logo" style="height: 25px; margin-left: 5px; margin-right: 5px; vertical-align: text-bottom;">
+                            MediaMaster
+                        </a>
+                    </div>
+                    <div class="sidebar-search px-3 pb-1">
+                        <form action="/search" method="GET" id="searchForm">
+                            <div class="search-box">
+                                <input class="form-control" type="search" name="q" placeholder="本地搜索" aria-label="Search">
+                                <button class="search-submit" type="submit">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('dashboard') %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                                <i class="bi bi-speedometer2"></i>
+                                系统仪表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('recommendations') %}active{% endif %}" href="{{ url_for('recommendations') }}">
+                                <i class="bi bi-calendar3"></i>
+                                热门推荐
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('subscriptions') %}active{% endif %}" href="{{ url_for('subscriptions') }}">
+                                <i class="bi bi-calendar-check"></i>
+                                正在订阅
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('manual_search') %}active{% endif %}" href="{{ url_for('manual_search') }}">
+                                <i class="bi bi-search"></i>
+                                资源搜索
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('service_control') %}active{% endif %}" href="{{ url_for('service_control') }}">
+                                <i class="bi bi-list-task"></i>
+                                服务控制
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('download_mgmt_page') %}active{% endif %}" href="{{ url_for('download_mgmt_page') }}">
+                                <i class="bi bi-download"></i>
+                                下载管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('settings_page') %}active{% endif %}" href="{{ url_for('settings_page') }}">
+                                <i class="bi bi-gear"></i>
+                                系统设置
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="theme-toggle">
+                        <button id="themeToggleBtn" type="button" title="切换日间/夜间模式">
+                            <span class="icon-sun">&#9728;</span>
+                            <span class="icon-moon" style="display:none;">&#9790;</span>
+                            <span id="themeLabel">日间模式</span>
+                        </button>
+                    </div>
+                    <div class="user">
+                        <img src="{{ avatar_url }}" alt="avatar" class="avatar">
+                        <p class="nickname">{{ nickname }}</p>
+                        <a class="nav-link logout" href="{{ url_for('logout') }}">退出登录</a>
+                    </div>
+                    <div class="docs-version-row">
+                        <div class="version">
+                            <p>
+                                <a href="#" id="open-version-modal">Version：{{ version }}
+                                <img class="new-version" id="new-version-indicator" style="display: none;" src="/static/img/new.png" alt="发现新版本"></a>
+                            </p>
+                        </div>
+                        <div class="docs-section">
+                            <a href="/docs" class="docs-link" target="_blank">
+                                <i class="bi bi-book"></i>
+                                <span>产品文档</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- 用户信息模态框 -->
+    <div class="modal fade" id="userProfileModal" tabindex="-1" aria-labelledby="userProfileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="InfoCard-header d-flex justify-content-between align-items-center">
+                    <h5 class="InfoCard-title" id="userProfileModalLabel">编辑个人资料</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+                        <li class="nav-item" role="presentation" style="margin-bottom: 1px;">
+                            <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="true">个人资料</button>
+                        </li>
+                        <li class="nav-item" role="presentation" style="margin-bottom: 1px;">
+                            <button class="nav-link" id="password-tab" data-bs-toggle="tab" data-bs-target="#password" type="button" role="tab" aria-controls="password" aria-selected="false">修改密码</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="profileTabsContent">
+                        <div class="tab-pane fade show active" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                            <form id="userProfileForm" class="mt-3">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">用户名</label>
+                                    <input type="text" class="form-control" id="username" value="{{ username }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="nickname" class="form-label">用户昵称</label>
+                                    <input type="text" class="form-control" id="nickname" value="{{ nickname }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="avatar" class="form-label">用户头像</label>
+                                    <input type="file" class="form-control" id="avatar">
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary">保存更改</button>
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="password" role="tabpanel" aria-labelledby="password-tab">
+                            <form id="changePasswordForm" class="mt-3">
+                                <div class="mb-3" style="display: none;">
+                                    <label for="visible-username" class="form-label">用户名</label>
+                                    <input type="text" class="form-control" id="visible-username" name="username" value="{{ username }}" autocomplete="username" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="current_password" class="form-label">当前密码</label>
+                                    <input type="password" class="form-control" id="current_password" required autocomplete="current-password">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="new_password" class="form-label">新密码</label>
+                                    <input type="password" class="form-control" id="new_password" required autocomplete="new-password">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirm_password" class="form-label">确认新密码</label>
+                                    <input type="password" class="form-control" id="confirm_password" required autocomplete="new-password">
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary">更新密码</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 版本更新模态框 -->
+    <div class="modal fade" id="versionUpdateModal" tabindex="-1" aria-labelledby="versionUpdateModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="versionUpdateModalLabel">关于程序</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="version-info">
+                        <p>当前版本：<span id="current-version">{{ version }}</span></p>
+                        <p>最新稳定版：<span id="latest-version">检查中...</span></p>
+                        <p>预发布测试版：<span id="prerelease-version">检查中...</span></p>
+                        <p id="prerelease-warning" style="display: none; color: #ff7800;">
+                            <i class="bi bi-exclamation-triangle"></i>预发布测试版本，可能存在不稳定因素，请谨慎选择更新。
+                        </p>
+                        <p id="update-notes" style="display: none;">更新说明：<br><div id="release-notes"></div></p>
+                    </div>
+                    <div class="d-flex justify-content-end mb-3">
+                        <div class="ml-auto">
+                            <div id="update-actions">
+                                <button id="perform-latest-update-btn" class="btn btn-sm btn-success" style="display: none;">更新稳定版</button>
+                                <button id="perform-prerelease-update-btn" class="btn btn-sm btn-primary" style="display: none; margin-left: 10px;">更新测试版</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 系统升级加载指示器遮罩层 -->
+    <div class="loader-container" id="loading-overlay">
+        <div class="loader"></div>
+        <div class="loading-text" id="loading-text">请稍后...</div>
+    </div>
+
+<script src="/static/js/popper.min.js"></script>
+<script src="/static/js/bootstrap.bundle.js"></script>
+<script src="/static/js/marked.min.js"></script>
+<script>
+    // 显示Toast消息的函数
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        
+        // 设置消息内容
+        toastMessage.textContent = message;
+        
+        // 设置样式类型
+        const toastHeader = toast.querySelector('.toast-header');
+        switch(type) {
+            case 'success':
+                toastMessage.style.color = '#006400';
+                break;
+            case 'error':
+                toastMessage.style.color = '#DC143C';
+                break;
+            case 'warning':
+                toastMessage.style.color = '#FF8C00';
+                break;
+            default:
+                toastMessage.style.color = '#000000';
+        }
+        
+        // 显示Toast
+        const bsToast = new bootstrap.Toast(toast, {delay: 3000});
+        bsToast.show();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const sidebar = document.getElementById('sidebarMenu');
+        const content = document.querySelector('.content');
+        const navbarToggler = document.querySelector('.navbar-toggler');
+        // 初始状态下，侧边栏默认展开
+        if (window.innerWidth > 768) {
+            sidebar.classList.remove('offcanvas');
+            content.classList.remove('collapsed');
+        }
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', function () {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('offcanvas');
+                content.classList.remove('collapsed');
+            } else {
+                sidebar.classList.add('offcanvas');
+                content.classList.add('collapsed');
+            }
+        });
+    });
+
+    // 打开用户资料Modal（侧边栏头像 + 侧边栏昵称 + 顶栏下拉菜单）
+    function openUserProfileModal() {
+        const modal = new bootstrap.Modal(document.getElementById('userProfileModal'));
+        modal.show();
+    }
+    const avatar = document.querySelector('.avatar');
+    if (avatar) avatar.addEventListener('click', openUserProfileModal);
+    const sidebarNickname = document.querySelector('.user .nickname');
+    if (sidebarNickname) sidebarNickname.addEventListener('click', openUserProfileModal);
+    const topbarProfileLink = document.getElementById('topbar-open-profile');
+    if (topbarProfileLink) {
+        topbarProfileLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            openUserProfileModal();
+        });
+    }
+
+    // 处理用户资料表单提交
+    document.getElementById('userProfileForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const formData = new FormData();
+        formData.append('username', document.getElementById('username').value);
+        formData.append('nickname', document.getElementById('nickname').value); 
+        const avatarFile = document.getElementById('avatar').files[0];
+        if (avatarFile) {
+            formData.append('avatar', avatarFile);
+        }
+
+        fetch('/api/update_profile', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                // 更新页面上的昵称和头像显示
+                const newNickname = document.getElementById('nickname').value;
+                document.querySelectorAll('.nickname').forEach(function(el) { el.textContent = newNickname || el.textContent; });
+                if (avatarFile) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.querySelectorAll('.avatar, .topbar-avatar').forEach(function(el) { el.src = e.target.result; });
+                    };
+                    reader.readAsDataURL(avatarFile);
+                }
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('userProfileModal'));
+                modal.hide();
+            } else {
+                showToast(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('发生错误，请稍后再试或检查网络连接。', 'error');
+        });
+    });
+
+    // 修改密码表单处理
+    document.getElementById('changePasswordForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        const currentPassword = document.getElementById('current_password').value;
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        // 验证新密码和确认密码是否一致
+        if (newPassword !== confirmPassword) {
+            showToast('新密码和确认密码不一致', 'warning');
+            return;
+        }
+        
+        // 构造请求数据
+        const formData = new FormData();
+        formData.append('old_password', currentPassword);
+        formData.append('new_password', newPassword);
+        formData.append('confirm_password', confirmPassword);
+        
+        fetch('/api/change_password', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                // 清空表单
+                document.getElementById('changePasswordForm').reset();
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('userProfileModal'));
+                modal.hide();
+            } else {
+                showToast(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('发生错误，请稍后再试或检查网络连接。', 'error');
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', async function () {
+        try {
+            // 调用检查更新接口
+            const response = await fetch('/check_update');
+            const data = await response.json();
+
+            if (data.error) {
+                console.error('检查更新失败:', data.error);
+                // showToast(`检查更新失败: ${data.error}`, 'error');
+                return;
+            }
+
+            // 如果有新版本，显示 "New" 标签
+            if (data.is_update_available) {
+                [document.getElementById('new-version-indicator'), document.getElementById('topbar-new-version-indicator')].forEach(function(el) {
+                    if (el) {
+                        el.style.display = 'inline';
+                        el.classList.add('blinking');
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('检查更新失败:', error);
+            // showToast('检查更新失败，请稍后再试。', 'error');
+        }
+    });
+
+    // 监听模态框显示事件（仅绑定一次）
+    document.getElementById('versionUpdateModal').addEventListener('show.bs.modal', async () => {
+        try {
+            // 重置模态框状态
+            document.getElementById('latest-version').textContent = '检查中...';
+            document.getElementById('prerelease-version').textContent = '检查中...';
+            document.getElementById('release-notes').innerHTML = '';
+            document.getElementById('update-notes').style.display = 'none';
+            document.getElementById('perform-latest-update-btn').style.display = 'none';
+            document.getElementById('perform-prerelease-update-btn').style.display = 'none';
+            document.getElementById('prerelease-warning').style.display = 'none';
+
+            // 调用检查更新接口
+            const response = await fetch('/check_update');
+            const data = await response.json();
+
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+
+            // 更新模态框中的版本信息
+            const currentVersion = data.current_version.trim();
+            document.getElementById('current-version').textContent = currentVersion;
+            
+            // 显示稳定版信息
+            if (data.latest_stable_version) {
+                document.getElementById('latest-version').textContent = data.latest_stable_version;
+                if (data.stable_update_available) {
+                    document.getElementById('perform-latest-update-btn').style.display = 'inline-block';
+                }
+            } else {
+                document.getElementById('latest-version').textContent = '无';
+            }
+            
+            // 显示预发布版信息
+            if (data.latest_prerelease_version) {
+                document.getElementById('prerelease-version').textContent = data.latest_prerelease_version;
+                if (data.prerelease_update_available) {
+                    document.getElementById('perform-prerelease-update-btn').style.display = 'inline-block';
+                    document.getElementById('prerelease-warning').style.display = 'block';
+                }
+            } else {
+                document.getElementById('prerelease-version').textContent = '无';
+            }
+
+            const updateNotes = document.getElementById('update-notes');
+            const releaseNotes = document.getElementById('release-notes');
+            
+            // 显示更新说明（根据可用更新的情况显示不同内容）
+            if (data.stable_update_available && data.prerelease_update_available) {
+                // 如果稳定版和预发布版都有更新，显示特殊提示
+                releaseNotes.innerHTML = '存在多版本更新，详细更新说明请查看：<a href="https://github.com/smysong/mediamaster-v2/blob/main/CHANGELOG.md" target="_blank">更新日志</a>';
+                updateNotes.style.display = 'block';
+            } else if (data.stable_update_available && data.stable_release_notes) {
+                // 只有稳定版有更新
+                releaseNotes.innerHTML = marked.parse(data.stable_release_notes);
+                updateNotes.style.display = 'block';
+            } else if (data.prerelease_update_available && data.prerelease_release_notes) {
+                // 只有预发布版有更新
+                releaseNotes.innerHTML = marked.parse(data.prerelease_release_notes);
+                updateNotes.style.display = 'block';
+            } else {
+                releaseNotes.textContent = "当前暂无可用更新。";
+                updateNotes.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('检查更新失败:', error);
+            showToast('检查更新失败，请稍后再试。', 'error');
+        }
+    });
+
+    // 点击版本号打开模态框（侧边栏 + 顶栏）
+    function openVersionModal(event) {
+        event.preventDefault();
+        const modalElement = document.getElementById('versionUpdateModal');
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+    document.getElementById('open-version-modal').addEventListener('click', openVersionModal);
+    const topbarVersionLink = document.getElementById('topbar-open-version-modal');
+    if (topbarVersionLink) {
+        topbarVersionLink.addEventListener('click', openVersionModal);
+    }
+
+    // 绑定更新按钮事件
+    document.getElementById('perform-latest-update-btn').addEventListener('click', function() {
+        performUpdate('latest');
+    });
+
+    document.getElementById('perform-prerelease-update-btn').addEventListener('click', function() {
+        performUpdate('prerelease');
+    });
+
+    // 执行更新按钮点击事件
+    async function performUpdate(updateType) {
+        let confirmMessage = '确定要执行更新吗？更新后系统将自动重启。';
+        
+        if (updateType === 'prerelease') {
+            if (!confirm('您将要更新到预发布测试版本，可能存在不稳定因素。确定要继续吗？')) {
+                return;
+            }
+            confirmMessage = '确定要更新到预发布测试版本吗？更新后系统将自动重启。';
+        } else {
+            confirmMessage = '确定要更新到最新稳定版本吗？更新后系统将自动重启。';
+        }
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        // 显示加载遮罩层
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+        loadingText.textContent = '系统更新中...'; // 直接设置文本
+        loadingOverlay.style.display = 'flex'; // 显示遮罩层
+
+        try {
+            // 发送更新请求，包含更新类型
+            const response = await fetch('/perform_update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({type: updateType})
+            });
+            
+            const data = await response.json();
+
+            if (data.error) {
+                showToast(data.error, 'error');
+                loadingOverlay.style.display = 'none'; // 隐藏遮罩层
+                return;
+            }
+
+            // 显示更新成功的消息
+            showToast(data.message, 'success');
+
+            // 修改加载指示器文字提示
+            loadingText.textContent = '系统重启中...'; // 更新文本
+
+            // 检查后端服务状态
+            const isBackendUp = await waitForBackendRestart();
+            if (isBackendUp) {
+                loadingText.textContent = '系统重启成功！'; // 更新文本
+                // 2秒后刷新页面
+                setTimeout(() => {
+                    location.reload(); // 刷新页面
+                }, 2000);
+            } else {
+                showToast('系统重启超时，请手动刷新页面。', 'warning');
+                loadingOverlay.style.display = 'none'; // 隐藏遮罩层
+            }
+        } catch (error) {
+            console.error('执行更新失败:', error);
+            showToast('执行更新失败，请稍后再试。', 'error');
+            loadingOverlay.style.display = 'none'; // 隐藏遮罩层
+        }
+    }
+
+    // 显示加载指示器
+    function showLoadingIndicator(overlay, textElement, message) {
+        textElement.textContent = message;
+        overlay.style.display = 'flex';
+    }
+
+    // 隐藏加载指示器
+    function hideLoadingIndicator(overlay) {
+        overlay.style.display = 'none';
+    }
+
+    // 等待后端重启
+    async function waitForBackendRestart() {
+        const maxWaitTime = 120000; // 最大等待时间：120秒
+        const checkInterval = 3000; // 检查间隔：3秒
+        const startTime = Date.now();
+
+        // 先等待30秒，让系统有时间重启
+        await new Promise(resolve => setTimeout(resolve, 30000));
+
+        while (Date.now() - startTime < maxWaitTime) {
+            const isBackendUp = await checkBackendStatus();
+            if (isBackendUp) {
+                return true; // 后端已启动
+            }
+            await new Promise(resolve => setTimeout(resolve, checkInterval)); // 等待下一次检查
+        }
+        return false; // 超时未启动
+    }
+
+    // 检查后端服务状态
+    async function checkBackendStatus() {
+        try {
+            const statusResponse = await fetch('/health_check'); // 假设后端提供健康检查接口
+            return statusResponse.ok; // 返回后端是否启动
+        } catch (error) {
+            return false; // 忽略错误，返回未启动状态
+        }
+    }
+
+    // 微信公众号二维码显示
+    document.addEventListener('DOMContentLoaded', function () {
+        const wechatContainer = document.getElementById('wechat-container');
+        const wechatQR = document.getElementById('wechat-qr');
+        
+        if (wechatContainer && wechatQR) {
+            wechatContainer.addEventListener('mouseenter', function() {
+                wechatQR.style.display = 'block';
+            });
+            
+            wechatContainer.addEventListener('mouseleave', function() {
+                wechatQR.style.display = 'none';
+            });
+        }
+    });
+
+    // ====== 日间/夜间模式切换 ======
+    (function() {
+        const THEME_KEY = 'mediamaster-theme';
+        const btns = document.querySelectorAll('#themeToggleBtn, #topbarThemeToggleBtn');
+        const iconSuns = document.querySelectorAll('.icon-sun');
+        const iconMoons = document.querySelectorAll('.icon-moon');
+        const label = document.getElementById('themeLabel');
+
+        function setTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                iconSuns.forEach(el => el.style.display = 'none');
+                iconMoons.forEach(el => el.style.display = 'inline');
+                if (label) label.textContent = '夜间模式';
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                iconSuns.forEach(el => el.style.display = 'inline');
+                iconMoons.forEach(el => el.style.display = 'none');
+                if (label) label.textContent = '日间模式';
+            }
+            localStorage.setItem(THEME_KEY, theme);
+        }
+
+        // 初始化：读取 localStorage 中的主题偏好
+        const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+        setTheme(savedTheme);
+
+        // 切换按钮点击 — 同时绑定侧边栏和顶栏的主题按钮
+        btns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+                setTheme(current === 'dark' ? 'light' : 'dark');
+            });
+        });
+    })();
+</script>
+</body>
+</html>

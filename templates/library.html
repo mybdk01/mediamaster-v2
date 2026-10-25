@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block head %}
+{{ super() }}
+{% endblock %}
+{% block title %}媒体库{% endblock %}
+{% block content %}
+
+<div class="content-wrapper">
+    {% if media_type == 'movies' %}
+        <h3 class="section-title">共计 {{ total_movies }} 部影片</h3>
+        <div class="poster-wall-container">
+            <div class="poster-wall" id="movieWall">
+                {% for movie in movies %}
+                <div class="poster-item" onclick="showMediaDetails(this)" data-title="{{ movie['title'] }}" data-year="{{ movie['year'] }}">
+                    <img src="/static/img/no-image.png" alt="海报不可用" class="movie-poster" data-tmdb-id="{{ movie['tmdb_id'] }}">
+                    <span class="rating">暂无评分</span> <!-- 显示评分 -->
+                    <div class="info">
+                        <h5>{{ movie['title'] }} ({{ movie['year'] }})</h5>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% elif media_type == 'tvs' %}
+        <h3 class="section-title">共计 {{ total_tvs }} 部电视节目</h3>
+        <div class="poster-wall-container">
+            <div class="poster-wall" id="tvWall">
+                {% for tv in tv_data %}
+                <div class="poster-item" onclick="showMediaDetails(this)" data-title="{{ tv.title }}" data-year="{{ tv.year }}" data-total-episodes="{{ tv.total_episodes }}">
+                    <img src="/static/img/no-image.png" alt="海报不可用" class="tv-poster" data-tmdb-id="{{ tv.tmdb_id }}">
+                    <span class="rating">暂无评分</span> <!-- 显示评分 -->
+                    <span class="episode-count">{{ tv.total_episodes }} 集</span> <!-- 显示总集数 -->
+                    <div class="info">
+                        <h5>{{ tv.title }} ({{ tv.year }})</h5>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+    <div class="spacer"></div>
+    <div id="pagination">
+        <a href="?page={{ page - 1 if page > 1 else 1 }}&type={{ media_type }}" class="btn btn-primary" id="prevPage">上一页</a>
+        <a href="?page={{ page + 1 if page < (total_movies if media_type == 'movies' else total_tvs) // per_page + 1 else page }}&type={{ media_type }}" class="btn btn-primary" id="nextPage">下一页</a>
+    </div>
+
+    <!-- Modal -->
+    <div id="mediaDetailsModal" class="modal fade" tabindex="-1" aria-labelledby="InfoCardLabel">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content">
+                <div class="InfoCard-header d-flex justify-content-between align-items-center">
+                    <h5 class="InfoCard-title" id="InfoCardLabel">影片简介</h5>
+                    <button type="button" class="btn-close text-reset" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-header">
+                        <div class="modal-poster">
+                            <img id="modalPoster" src="" alt="海报">
+                        </div>
+                        <div class="modal-details">
+                            <h3 id="modalTitle" style="font-weight: 600;"></h3>
+                            <p id="modalGenres"></p> <!-- 新增：类型信息 -->
+                            <p id="modalEpisodeCount"></p>
+                            <p id="modalYear"></p>
+                            <p id="modalRating"></p> <!-- 新增：评分信息 -->
+                            <p id="modalOverview"></p>
+                        </div>
+                    </div>
+                    <!-- 新增：导演和演员信息区域 -->
+                    <div class="modal-credits mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+    const apiKey = '{{ tmdb_api_key }}';
+    const baseUrl = 'https://image.tmdb.org/t/p/w500';
+    const defaultImageUrl = '/static/img/no-image.png';
+    const mediaType = "{{ media_type }}"; // 将 media_type 传递给 JavaScript
+
+    // 加载电影海报，优先显示默认图片，成功加载TMDB图片后再替换，失败或超时保持默认图
+    function fetchMoviePoster(imgElement) {
+        const tmdbId = imgElement.dataset.tmdbId;
+        const url = `https://api.tmdb.org/3/movie/${tmdbId}?api_key=${apiKey}&language=zh-CN`;
+
+        // 先显示默认图片
+        imgElement.src = defaultImageUrl;
+
+        $.getJSON(url, function(data) {
+            if (data.poster_path) {
+                const tmdbPosterUrl = `${baseUrl}${data.poster_path}`;
+                // 用 Image 对象尝试加载 TMDB 图片
+                const loader = new window.Image();
+                let loaded = false;
+                loader.onload = function() {
+                    loaded = true;
+                    imgElement.src = tmdbPosterUrl;
+                };
+                loader.onerror = function() {
+                    // 保持默认图片
+                };
+                loader.src = tmdbPosterUrl;
+                // 超时处理（如3秒）
+                setTimeout(function() {
+                    if (!loaded) loader.onerror();
+                }, 3000);
+            }
+            if (data.vote_average) { // 获取评分并显示
+                const formattedRating = data.vote_average.toFixed(1);
+                $(imgElement).siblings('.rating').text(`评分: ${formattedRating}`);
+            }
+        }).fail(function() {
+            // 保持默认图片
+            console.log('获取电影数据时发生错误。');
+        });
+    }
+
+    // 加载电视剧海报，优先显示默认图片，成功加载TMDB图片后再替换，失败或超时保持默认图
+    function fetchTvPoster(imgElement) {
+        const tmdbId = imgElement.dataset.tmdbId;
+        const url = `https://api.tmdb.org/3/tv/${tmdbId}?api_key=${apiKey}&language=zh-CN`;
+
+        // 先显示默认图片
+        imgElement.src = defaultImageUrl;
+
+        $.getJSON(url, function(data) {
+            if (data.poster_path) {
+                const tmdbPosterUrl = `${baseUrl}${data.poster_path}`;
+                // 用 Image 对象尝试加载 TMDB 图片
+                const loader = new window.Image();
+                let loaded = false;
+                loader.onload = function() {
+                    loaded = true;
+                    imgElement.src = tmdbPosterUrl;
+                };
+                loader.onerror = function() {
+                    // 保持默认图片
+                };
+                loader.src = tmdbPosterUrl;
+                // 超时处理（如3秒）
+                setTimeout(function() {
+                    if (!loaded) loader.onerror();
+                }, 3000);
+            }
+            if (data.vote_average) { // 获取评分并显示
+                const formattedRating = data.vote_average.toFixed(1);
+                $(imgElement).siblings('.rating').text(`评分: ${formattedRating}`);
+            }
+        }).fail(function() {
+            // 保持默认图片
+            console.log('获取电视剧数据时发生错误。');
+        });
+    }
+
+    // 初始化加载电影/电视剧海报及评分
+    $(document).ready(function() {
+        $('.movie-poster').each(function() {
+            fetchMoviePoster(this);
+        });
+
+        $('.tv-poster').each(function() {
+            fetchTvPoster(this);
+        });
+
+        adjustPosterWallLayout();
+        $(window).resize(adjustPosterWallLayout);
+
+        // 根据媒体项数量显示或隐藏分页按钮
+        const items = $('#movieWall, #tvWall').find('.poster-item');
+        const itemCount = items.length;
+        const perPage = {{ per_page }};
+        const currentPage = {{ page }};
+        const totalPages = Math.ceil((mediaType == 'movies' ? {{ total_movies }} : {{ total_tvs }}) / perPage);
+
+        if (currentPage === 1) {
+            $('#prevPage').hide();
+        } else {
+            $('#prevPage').show();
+        }
+
+        if (currentPage === totalPages || itemCount < perPage) {
+            $('#nextPage').hide();
+        } else {
+            $('#nextPage').show();
+        }
+    });
+
+    // 自适应调整海报墙布局
+    function adjustPosterWallLayout() {
+        const posterWall = document.querySelector('.poster-wall');
+        const items = posterWall.querySelectorAll('.poster-item');
+        const itemCount = items.length;
+
+        let columns, rows;
+        if (window.innerWidth > 800) {
+            columns = Math.min(Math.max(itemCount, 6), 6); // 大屏幕默认6列
+            rows = Math.min(Math.ceil(itemCount / columns), 4); // 大屏幕最多4行
+        } else {
+            columns = Math.min(Math.max(itemCount, 4), 4); // 小屏幕默认4列
+            rows = Math.min(Math.ceil(itemCount / columns), 6); // 小屏幕最多6行
+        }
+
+        posterWall.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+        posterWall.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    }
+
+    // 显示媒体详情模态框，增加演职人员等信息
+    function showMediaDetails(element) {
+        const tmdbId = element.querySelector('.movie-poster, .tv-poster').dataset.tmdbId;
+        const mediaType = element.querySelector('.movie-poster') ? 'movie' : 'tv';
+        // 使用带有credits附加信息的URL
+        const url = `https://api.tmdb.org/3/${mediaType}/${tmdbId}?api_key=${apiKey}&language=zh-CN&append_to_response=credits`;
+
+        const title = element.getAttribute('data-title');
+        const year = element.getAttribute('data-year');
+
+        $.getJSON(url, function(data) {
+            const modalPoster = document.getElementById('modalPoster');
+            // 先显示默认图片
+            modalPoster.src = defaultImageUrl;
+            if (data.poster_path) {
+                const tmdbPosterUrl = `${baseUrl}${data.poster_path}`;
+                // 用 Image 对象尝试加载 TMDB 图片
+                const loader = new window.Image();
+                let loaded = false;
+                loader.onload = function() {
+                    loaded = true;
+                    modalPoster.src = tmdbPosterUrl;
+                };
+                loader.onerror = function() {
+                    // 保持默认图片
+                };
+                loader.src = tmdbPosterUrl;
+                // 超时处理（如3秒）
+                setTimeout(function() {
+                    if (!loaded) loader.onerror();
+                }, 3000);
+            }
+            
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalYear').innerText = `发行年份: ${year}`;
+            document.getElementById('modalOverview').innerText = data.overview || '暂无简介';
+            
+            // 新增：显示评分信息
+            const rating = data.vote_average ? data.vote_average.toFixed(1) : '暂无评分';
+            document.getElementById('modalRating').innerText = `评分: ${rating}`;
+            
+            // 新增：显示类型信息
+            const genres = data.genres ? data.genres.map(g => g.name).join(', ') : '未知类型';
+            document.getElementById('modalGenres').innerText = `类型: ${genres}`;
+            
+            if (mediaType === 'tv') {
+                const totalEpisodes = element.getAttribute('data-total-episodes');
+                document.getElementById('modalEpisodeCount').innerText = `共 ${totalEpisodes} 集`;
+            } else {
+                document.getElementById('modalEpisodeCount').innerText = '';
+            }
+            
+            // 新增：显示导演和演员信息
+            displayCreditsInfo(data.credits, mediaType);
+            
+            $('#mediaDetailsModal').modal('show');
+        }).fail(function() {
+            // 保持默认图片
+            console.log('获取媒体数据时发生错误。');
+        });
+    }
+
+    // 新增：显示导演和演员信息
+    function displayCreditsInfo(credits, mediaType) {
+        const creditsContainer = document.querySelector('.modal-credits');
+        creditsContainer.innerHTML = ''; // 清空之前的内容
+        
+        if (!credits) return;
+        
+        // 获取导演信息
+        const directors = credits.crew ? credits.crew.filter(person => person.job === "Director") : [];
+        
+        // 获取主要演员信息（按知名度排序，取前6个）
+        const mainCast = credits.cast ? 
+            credits.cast
+                .sort((a, b) => b.popularity - a.popularity)
+                .slice(0, 6) : [];
+        
+        let creditsHtml = '';
+        
+        // 添加导演信息
+        if (directors.length > 0) {
+            creditsHtml += `
+                <div class="credits-section mt-3">
+                    <h5>导演</h5>
+                    <div class="persons-list d-flex flex-wrap gap-3">
+            `;
+            
+            directors.forEach(director => {
+                // 处理过长的名字
+                const maxNameLength = 8;
+                const displayName = director.name.length > maxNameLength ? 
+                    director.name.substring(0, maxNameLength) + '...' : director.name;
+                    
+                const roleName = '导演';
+                const displayRole = roleName.length > 8 ? 
+                    roleName.substring(0, 8) + '...' : roleName;
+                
+                const profileUrl = director.profile_path ? 
+                    `https://image.tmdb.org/t/p/w185${director.profile_path}` : 
+                    '/static/img/avatar.png';
+                    
+                creditsHtml += `
+                    <div class="person-card text-center">
+                        <div class="person-image mx-auto mb-2">
+                            <img src="${profileUrl}" alt="${director.name}" class="rounded-circle" 
+                                style="object-fit: cover;"
+                                onerror="this.src='/static/img/avatar.png'">
+                        </div>
+                        <div class="person-info">
+                            <div class="person-name fw-bold" title="${director.name}">${displayName}</div>
+                            <div class="person-role text-muted small" title="${roleName}">${displayRole}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            creditsHtml += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 添加演员信息
+        if (mainCast.length > 0) {
+            creditsHtml += `
+                <div class="credits-section mt-3">
+                    <h5>主要演员</h5>
+                    <div class="persons-list d-flex flex-wrap gap-3">
+            `;
+            
+            mainCast.forEach(person => {
+                // 处理过长的名字
+                const maxNameLength = 8;
+                const displayName = person.name.length > maxNameLength ? 
+                    person.name.substring(0, maxNameLength) + '...' : person.name;
+                    
+                const roleName = person.character || '演员';
+                const displayRole = roleName.length > 8 ? 
+                    roleName.substring(0, 8) + '...' : roleName;
+                
+                const profileUrl = person.profile_path ? 
+                    `https://image.tmdb.org/t/p/w185${person.profile_path}` : 
+                    '/static/img/avatar.png';
+                    
+                creditsHtml += `
+                    <div class="person-card text-center">
+                        <div class="person-image mx-auto mb-2">
+                            <img src="${profileUrl}" alt="${person.name}" class="rounded-circle" 
+                                style="object-fit: cover;"
+                                onerror="this.src='/static/img/avatar.png'">
+                        </div>
+                        <div class="person-info">
+                            <div class="person-name fw-bold" title="${person.name}">${displayName}</div>
+                            <div class="person-role text-muted small" title="${roleName}">${displayRole}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            creditsHtml += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        creditsContainer.innerHTML = creditsHtml;
+    }
+
+    // 关闭模态框时清空内容
+    $('#mediaDetailsModal').on('hidden.bs.modal', function () {
+        document.getElementById('modalPoster').src = '';
+        document.getElementById('modalTitle').innerText = '';
+        document.getElementById('modalGenres').innerText = ''; // 清空类型信息
+        document.getElementById('modalEpisodeCount').innerText = '';
+        document.getElementById('modalYear').innerText = '';
+        document.getElementById('modalRating').innerText = ''; // 清空评分信息
+        document.getElementById('modalOverview').innerText = '';
+        document.querySelector('.modal-credits').innerHTML = ''; // 清空导演和演员信息
+    });
+
+    function closeModal() {
+        $('#mediaDetailsModal').modal('hide');
+    }
+</script>
+</div>
+{% endblock %}

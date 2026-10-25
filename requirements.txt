@@ -1,0 +1,12 @@
+psutil
+requests
+beautifulsoup4
+selenium
+schedule
+flask
+watchdog
+bcrypt
+transmission-rpc
+qbittorrent-api
+bencodepy
+guessit

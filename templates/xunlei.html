@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}下载管理{% endblock %}
+{% block content %}
+<div class="content-wrapper">
+    <div class="row fade-in">
+        <div class="card mb-4">
+            <div class="card-header">迅雷-远程设备管理</div>
+            <div class="card-body">
+                {% if download_mgmt and download_mgmt.VALUE == 'True' %}
+                    <iframe id="xunlei-iframe" width="100%" height="780px" frameborder="0"></iframe>
+                    <script>
+                        // 从 Jinja2 获取厂商标识（自动转义，安全）
+                        const vendor = "{{ xunlei_vendor | e }}";
+                        const vendorUrlMap = {
+                            'ugreen': 'https://pan.xunlei.com/yc/ugreen/',
+                            'lenovo': 'https://pan.xunlei.com/yc/lenovo/',
+                            'unibox': 'https://pan.xunlei.com/yc/unibox/',
+                            'hik': 'https://pan.xunlei.com/yc/hik/',
+                            'lex': 'https://pan.xunlei.com/yc/lex/',
+                            'jkj': 'https://pan.xunlei.com/yc/jkj/',
+                            'huawei': 'https://pan.xunlei.com/yc/huawei/'
+                        };
+                        let srcUrl = vendorUrlMap[vendor] || 'https://pan.xunlei.com/yc/home/';
+                        document.getElementById('xunlei-iframe').src = srcUrl;
+                        console.log('加载迅雷页面:', srcUrl, '厂商:', vendor);
+                    </script>
+                {% else %}
+                    <p>下载管理功能未启用，请在系统设置中启用下载管理并配置下载器相关参数</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

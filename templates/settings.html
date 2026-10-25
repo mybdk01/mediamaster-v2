@@ -1,0 +1,1517 @@
+{% extends "base.html" %}
+{% block title %}系统设置{% endblock %}
+{% block content %}
+<div class="content-wrapper settings-page">
+    <div class="row g-4">
+        <div class="col-12">
+            <form method="post" action="/save_set" id="settingsForm">
+                <div class="row g-4">
+                    <!-- 定时任务 -->
+                    <div class="col-12">
+                        <h5 class="section-title">系统配置</h5>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-clock-history me-2"></i>定时任务设置
+                            </div>
+                            <div class="card-body">
+                                {% for key, field in config['定时任务'].items() %}
+                                <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                    <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                    
+                                    <!-- 隐藏字段存储 ID -->
+                                    <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                    
+                                    <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    
+                                    {% if key == 'run_interval_hours' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> 自动化流程（检查订阅、检索、下载等）运行间隔（小时），建议4小时以上，减少频繁请求。
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 消息通知 -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-bell me-2"></i>消息通知
+                            </div>
+                            <div class="card-body">
+                                {% for key, field in config['消息通知'].items() %}
+                                <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                    {% if field.type == 'switch' %}
+                                    <div class="switch-container">
+                                        <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                        
+                                        <!-- 隐藏字段存储 ID -->
+                                        <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                        
+                                        <label class="switch">
+                                            <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    {% else %}
+                                    <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                    
+                                    <!-- 隐藏字段存储 ID -->
+                                    <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                    
+                                    <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% endif %}
+                                    
+                                    {% if key == 'notification_api_key' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> Bark API密钥用于接收推送通知。
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 媒体库目录 -->
+                    <div class="col-12">
+                        <h5 class="section-title">媒体库目录</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-folder me-2"></i>目录设置
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <!-- 先显示主目录（media_dir） -->
+                                    {% if 'media_dir' in config['媒体库目录'] %}
+                                    {% set field = config['媒体库目录']['media_dir'] %}
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="mb-3 setting-item" id="form-group-media_dir">
+                                            <label for="media_dir" class="form-label fw-medium">{{ field.label }}</label>
+                                            
+                                            <!-- 隐藏字段存储 ID -->
+                                            <input type="hidden" name="media_dir_id" value="{{ field.id }}">
+                                            
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" name="media_dir" id="media_dir" value="{{ field.value }}">
+                                                <button class="btn btn-sm btn-outline-primary directory-selector-btn" 
+                                                        type="button" data-target="media_dir">
+                                                    <i class="bi bi-folder" style="margin-right:0px;"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- 按指定顺序显示媒体库目录 -->
+                                    {% set media_dirs_order = ['movies_path', 'episodes_path', 'anime_path', 'variety_path', 'unknown_path'] %}
+                                    
+                                    <!-- 显示媒体目录 -->
+                                    {% for key in media_dirs_order %}
+                                        {% if key in config['媒体库目录'] %}
+                                        {% set field = config['媒体库目录'][key] %}
+                                        <div class="col-md-6 col-lg-3">
+                                            <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                                <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                                
+                                                <!-- 隐藏字段存储 ID -->
+                                                <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                                
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                                    <button class="btn btn-sm btn-outline-primary directory-selector-btn" 
+                                                            type="button" data-target="{{ key }}">
+                                                        <i class="bi bi-folder" style="margin-right:0px;"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>                 
+
+                    <!-- 豆瓣设置 -->
+                    <div class="col-12">
+                        <h5 class="section-title">豆瓣集成</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-film me-2"></i>豆瓣设置
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for key, field in config['豆瓣设置'].items() %}
+                                    {% if key not in ['douban_api_key', 'douban_cookie'] %}
+                                    <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                        <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                        
+                                        <!-- 隐藏字段存储 ID -->
+                                        <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                        
+                                        {% if field.type == 'password' %}
+                                            <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                        {% elif field.type == 'text' %}
+                                            <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% if key == 'douban_user_ids' %}
+                                            <div class="form-text text-danger">
+                                                <i class="bi bi-exclamation-triangle me-1"></i> 必填项：豆瓣账号ID，用于获取豆瓣想看数据并添加订阅，多个账号可以用,逗号分隔。<a target="_blank" href="/docs">使用帮助</a>
+                                            </div>
+                                            {% elif key == 'douban_rss_url' %}
+                                            <div class="form-text text-danger">
+                                                <i class="bi bi-exclamation-triangle me-1"></i> 必填项：豆瓣想看地址，将your_douban_id替换为自己的ID。<a target="_blank" href="/docs">使用帮助</a>
+                                            </div>
+                                            {% elif key == 'douban_cookie' %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 豆瓣cookie非必要选项，保持系统默认即可。
+                                            </div>
+                                            {% endif %}
+                                        {% endif %}
+                                        
+                                        {% if key == 'douban_api_key' %}
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle me-1"></i> 豆瓣密钥用于获取媒体详细信息、演职人员中文汉化等，保持系统默认即可。
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 站点索引开关 -->
+                    <div class="col-12">
+                        <h5 class="section-title">站点索引</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-link me-2"></i>站点索引开关
+                            </div>
+                            <div class="card-body">
+                                <!-- 使用与媒体元数据刮削相同的网格布局 -->
+                                <div class="site-index-switches">
+                                    {% for key, field in config['站点索引开关'].items() %}
+                                    <div class="site-index-switch">
+                                        <label for="{{ key }}" class="form-label fw-medium mb-0">{{ field.label }}</label>
+                                        <label class="switch">
+                                            <input type="checkbox" class="site-toggle" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 私有资源站点设置 -->
+                    <div class="col-12">
+                        <h5 class="section-title">私有资源站点</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-shield-lock me-2"></i>私有资源站点设置
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for key, field in config['私有资源站点设置'].items() %}
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                            <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                            
+                                            <!-- 隐藏字段存储 ID -->
+                                            <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                            
+                                            {% if field.type == 'text' %}
+                                                <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% elif field.type == 'password' %}
+                                                <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i> 私有站点需要付费注册并确保两个站点用户名、密码一致，成功登录后才能进行搜索、下载，需自行注册用户。不使用则保持默认。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 公开资源站点设置 -->
+                    <div class="col-12">
+                        <h5 class="section-title">公开资源站点</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-globe me-2"></i>公开资源站点设置
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for key, field in config['公开资源站点设置'].items() %}
+                                    {% if key not in ['bt0_login_username', 'bt0_login_password'] %}
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                            {% if field.type == 'switch' %}
+                                            <div class="switch-container">
+                                                <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                                
+                                                <!-- 隐藏字段存储 ID -->
+                                                <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                                
+                                                <label class="switch">
+                                                    <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                                    <span class="slider"></span>
+                                                </label>
+                                            </div>
+                                            {% else %}
+                                            <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                            
+                                            <!-- 隐藏字段存储 ID -->
+                                            <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                            
+                                            {% if field.type == 'text' %}
+                                                <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% elif field.type == 'password' %}
+                                                <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i> 公开站点仅“观影”需要成功登录后才能进行搜索、下载，需自行注册用户（观影不定期开放注册）。不使用则保持默认。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 资源下载设置 -->
+                    <div class="col-12">
+                        <h5 class="section-title">资源下载</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-download me-2"></i>下载设置
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for key, field in config['资源下载设置'].items() %}
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                            {% if field.type == 'switch' %}
+                                            <div class="switch-container">
+                                                <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                                
+                                                <!-- 隐藏字段存储 ID -->
+                                                <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                                
+                                                <label class="switch">
+                                                    <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                                    <span class="slider"></span>
+                                                </label>
+                                            </div>
+                                            {% elif field.type == 'text' %}
+                                            <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                            
+                                            <!-- 隐藏字段存储 ID -->
+                                            <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                            
+                                            <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% if ',' in field.value %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 多个值可以用,逗号分隔
+                                            </div>
+                                            {% endif %}
+                                            {% else %}
+                                            <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                            
+                                            <!-- 隐藏字段存储 ID -->
+                                            <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                            {% endif %}
+                                            
+                                            {% if key == 'preferred_resolution' %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 首选/备选分辨率支持：720p、1080p、2160p等。以"p"（逐行扫描）为单位。
+                                            </div>
+                                            {% elif key == 'resources_prefer_keywords' %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 资源下载偏好关键词与资源搜索排除关键词是冲突的，相同关键词不能同时在两个设置项中；如无需求可不填写。
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 下载器管理 -->
+                    <div class="col-12">
+                        <h5 class="section-title">下载器配置</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-hdd-network me-2"></i>下载器管理
+                            </div>
+                            <div class="card-body">
+                                {% for key, field in config['下载器管理'].items() %}
+                                <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                    {% if field.type == 'switch' %}
+                                    <div class="switch-container">
+                                        <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                        
+                                        <!-- 隐藏字段存储 ID -->
+                                        <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                        
+                                        <label class="switch">
+                                            <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    {% else %}
+                                    <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                    
+                                    <!-- 隐藏字段存储 ID -->
+                                    <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                    
+                                    {% if field.type == 'downloader' %}
+                                        <select class="form-select" name="{{ key }}" id="{{ key }}">
+                                            <option value="transmission" {% if field.value == 'transmission' %}selected{% endif %}>Transmission</option>
+                                            <option value="qbittorrent" {% if field.value == 'qbittorrent' %}selected{% endif %}>qBittorrent</option>
+                                            <option value="xunlei" {% if field.value == 'xunlei' %}selected{% endif %}>迅雷</option>
+                                        </select>
+                                    {% elif field.type == 'select' %}
+                                        <select class="form-select" name="{{ key }}" id="{{ key }}">
+                                            {% for opt_value, opt_label in field.options.items() %}
+                                            <option value="{{ opt_value }}" {% if field.value == opt_value %}selected{% endif %}>{{ opt_label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    {% elif field.type == 'text' %}
+                                        <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% elif field.type == 'password' %}
+                                        <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% endif %}
+                                    {% endif %}
+                                    
+                                    {% if key == 'download_port' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> 使用transmission和qbittorrent需要填写IP地址和端口。不使用则保持默认。
+                                    </div>
+                                    {% elif key == 'xunlei_dir' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> 迅雷远程下载需填写用户名、密码、设备名称、下载目录。<a target="_blank" href="/docs">使用帮助</a>
+                                    </div>
+                                    {% elif key == 'xunlei_vendor' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> 请根据NAS迅雷版本选择对应的厂商信息。
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                <!-- 测试按钮 -->
+                                <div class="mt-2">
+                                    <button type="button" id="testDownloaderBtn" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-wifi"></i> 测试连接
+                                    </button>
+                                    <span id="testResult" class="ms-2"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 文件转移设置 -->
+                    <div class="col-12">
+                        <h5 class="section-title">文件转移</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-folder-symlink me-2"></i>文件转移设置
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for key, field in config['文件转移设置'].items() %}
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                            {% if field.type == 'switch' %}
+                                            <div class="switch-container">
+                                                <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                                
+                                                <!-- 隐藏字段存储 ID -->
+                                                <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                                
+                                                <label class="switch">
+                                                    <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                                    <span class="slider"></span>
+                                                </label>
+                                            </div>
+                                            {% elif field.type == 'select' %}
+                                            <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                            
+                                            <!-- 隐藏字段存储 ID -->
+                                            <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                            
+                                            {% if key == 'download_action' %}
+                                            <select class="form-select" name="{{ key }}" id="{{ key }}">
+                                                <option value="move" {% if field.value == 'move' %}selected{% endif %}>移动</option>
+                                                <option value="copy" {% if field.value == 'copy' %}selected{% endif %}>复制</option>
+                                                <option value="softlink" {% if field.value == 'softlink' %}selected{% endif %}>软链接</option>
+                                                <option value="hardlink" {% if field.value == 'hardlink' %}selected{% endif %}>硬链接</option>
+                                            </select>
+                                            {% elif key == 'file_overwrite_option' %}
+                                            <select class="form-select" name="{{ key }}" id="{{ key }}">
+                                                <option value="skip" {% if field.value == 'skip' %}selected{% endif %}>跳过</option>
+                                                <option value="size" {% if field.value == 'size' %}selected{% endif %}>智能</option>
+                                                <option value="always" {% if field.value == 'always' %}selected{% endif %}>强制</option>
+                                            </select>
+                                            {% else %}
+                                            <select class="form-select" name="{{ key }}" id="{{ key }}">
+                                                {% for option in field.options %}
+                                                <option value="{{ option }}" {% if field.value == option %}selected{% endif %}>{{ option }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            {% endif %}
+                                            {% else %}
+                                            <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                            
+                                            <!-- 隐藏字段存储 ID -->
+                                            <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                            
+                                            <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% endif %}
+                                            
+                                            {% if key == 'download_dir' %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 下载监控目录，系统会监控此目录中的文件变化并进行处理
+                                            </div>
+                                            {% elif key == 'download_excluded_filenames' %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 下载转移时排除的文件名，多个文件名用逗号分隔
+                                            </div>
+                                            {% elif key in ['movie_folder_naming_format', 'tv_folder_naming_format', 'anime_folder_naming_format', 'variety_folder_naming_format'] %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 可用变量以及使用说明请查看：<a target="_blank" href="/docs">使用帮助</a>
+                                            </div>
+                                            {% elif key in ['movie_naming_format', 'tv_naming_format', 'anime_naming_format', 'variety_naming_format'] %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 可用变量以及使用说明请查看：<a target="_blank" href="/docs">使用帮助</a>
+                                            </div>
+                                            {% elif key == 'file_overwrite_option' %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 跳过：已存在则不操作 | 智能：仅当新文件更大时才覆盖 | 强制：强制覆盖旧文件；
+                                            </div>
+                                            {% elif key == 'transfer_thread_count' %}
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i> 建议将并发任务数设置为 2-6，实际效果受磁盘性能与系统资源影响。
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 媒体元数据 -->
+                    <div class="col-12">
+                        <h5 class="section-title">媒体元数据</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-file-earmark-text me-2"></i>媒体元数据刮削
+                            </div>
+                            <div class="card-body">
+                                <!-- 媒体元数据刮削设置网格 -->
+                                <div class="scrape-settings-grid">
+                                    {% for key, field in config['媒体元数据刮削'].items() %}
+                                    <div class="scrape-setting" id="form-group-{{ key }}">
+                                        <label class="form-label fw-medium">{{ field.label }}</label>
+                                        
+                                        <!-- 隐藏字段存储 ID -->
+                                        <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                        
+                                        {% if field.type == 'switch' %}
+                                            <label class="switch">
+                                                <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                                <span class="slider"></span>
+                                            </label>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 元数据增强选项 -->
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-file-earmark-text me-2"></i>元数据增强选项
+                            </div>
+                            <div class="card-body">
+                                <!-- 媒体添加时间设置 -->
+                                {% for key, field in config['媒体添加时间'].items() %}
+                                <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                    {% if field.type == 'switch' %}
+                                    <div class="switch-container">
+                                        <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                        
+                                        <!-- 隐藏字段存储 ID -->
+                                        <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                        
+                                        <label class="switch">
+                                            <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    {% else %}
+                                    <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                    
+                                    <!-- 隐藏字段存储 ID -->
+                                    <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                    
+                                    <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% endif %}
+                                    
+                                    {% if key == 'dateadded' %}
+                                    <div class="form-text mt-2">
+                                        <i class="bi bi-info-circle me-1"></i> 将NFO元数据文件中的添加日期改为影片发行日期，便于Emby、Jellyfin等媒体服务器在最新媒体中按发行日期排序。
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                
+                                <!-- 中文演职人员 -->
+                                {% for key, field in config['中文演职人员'].items() %}
+                                <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                    {% if field.type == 'switch' %}
+                                    <div class="switch-container">
+                                        <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                        
+                                        <!-- 隐藏字段存储 ID -->
+                                        <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                        
+                                        <label class="switch">
+                                            <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    {% elif field.type == 'text' %}
+                                    <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                    
+                                    <!-- 隐藏字段存储 ID -->
+                                    <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                    
+                                    <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% if ',' in field.value %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> 多个值可以用,逗号分隔
+                                    </div>
+                                    {% endif %}
+                                    {% endif %}
+                                    
+                                    {% if key == 'actor_nfo' %}
+                                    <div class="form-text mt-2">
+                                        <i class="bi bi-info-circle me-1"></i> 开启后将尝试对NFO文件中的演职人员信息进行中文汉化。
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- tinyMediaManager 集成 -->
+                    <div class="col-12">
+                        <h5 class="section-title">TMM 集成</h5>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-tools me-2"></i>TMM 设置
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for key, field in config['TMM设置'].items() %}
+                                    <div class="col-12">
+                                        <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                            {% if field.type == 'switch' %}
+                                            <div class="switch-container">
+                                                <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                                
+                                                <!-- 隐藏字段存储 ID -->
+                                                <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                                
+                                                <label class="switch">
+                                                    <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                                    <span class="slider"></span>
+                                                </label>
+                                            </div>
+                                            {% else %}
+                                            <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                            
+                                            <!-- 隐藏字段存储 ID -->
+                                            <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                            
+                                            {% if field.type == 'password' %}
+                                                <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% else %}
+                                                <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                            {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i> 启用后，文件转移成功入库后会自动通知 TMM 进行刮削处理。（TMM需提前做好配置）
+                                </div>
+                                
+                                <!-- 添加TMM测试按钮 -->
+                                <div class="mt-3">
+                                    <button type="button" id="testTMMBtn" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-wifi"></i> 测试TMM连接
+                                    </button>
+                                    <span id="tmmTestResult" class="ms-2"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>     
+
+                    <!-- TMDB & OCR 接口 -->
+                    <div class="col-12">
+                        <h5 class="section-title">外部接口</h5>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-ticket-detailed me-2"></i>TMDB接口
+                            </div>
+                            <div class="card-body">
+                                {% for key, field in config['TMDB接口'].items() %}
+                                <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                    <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                    
+                                    <!-- 隐藏字段存储 ID -->
+                                    <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                    
+                                    {% if field.type == 'password' %}
+                                        <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% elif field.type == 'text' %}
+                                        <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% endif %}
+                                    
+                                    {% if key == 'tmdb_api_key' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> TMDB密钥用于获取媒体详细信息、文件转移、热门推荐；系统已内置API密钥，推荐使用自己的API密钥。
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-eye me-2"></i>OCR接口
+                            </div>
+                            <div class="card-body">
+                                {% for key, field in config['OCR接口'].items() %}
+                                <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                    <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                    
+                                    <!-- 隐藏字段存储 ID -->
+                                    <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                    
+                                    {% if field.type == 'password' %}
+                                        <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% endif %}
+                                    
+                                    {% if key == 'ocr_api_key' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> OCR API密钥用于识别站点图片验证码，需自行申请：<a target="_blank" href="https://ocr.space/ocrapi/freekey">免费申请</a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if config.get('Jackett 设置') %}
+                    <div class="col-md-6">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header text-white d-flex align-items-center">
+                                <i class="bi bi-plugin me-2"></i>Jackett
+                            </div>
+                            <div class="card-body">
+                                {% for key, field in config['Jackett 设置'].items() %}
+                                <div class="mb-3 setting-item" id="form-group-{{ key }}">
+                                    {% if field.type == 'switch' %}
+                                    <div class="switch-container">
+                                        <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+                                        <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+                                        <label class="switch">
+                                            <input type="checkbox" name="{{ key }}" id="{{ key }}" {% if field.value == 'True' %}checked{% endif %}>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    {% else %}
+                                    <label for="{{ key }}" class="form-label fw-medium">{{ field.label }}</label>
+
+                                    <!-- 隐藏字段存储 ID -->
+                                    <input type="hidden" name="{{ key }}_id" value="{{ field.id }}">
+
+                                    {% if field.type == 'password' %}
+                                        <input type="password" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% else %}
+                                        <input type="text" class="form-control" name="{{ key }}" id="{{ key }}" value="{{ field.value }}">
+                                    {% endif %}
+                                    {% endif %}
+
+                                    {% if key == 'jackett_api_key' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> Jackett 用于聚合多个索引器；本项目通过 Torznab API 拉取结果并生成 /tmp/index/*-JACKETT.json。
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+
+                                <!-- 添加 Jackett 测试按钮 -->
+                                <div class="mt-3">
+                                    <button type="button" id="testJackettBtn" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-wifi"></i> 测试 Jackett 连接
+                                    </button>
+                                    <span id="jackettTestResult" class="ms-2"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 设置操作栏 -->
+    <div class="settings-action-bar">
+        <button type="button" class="btn btn-reset" id="resetBtn" title="执行重置操作后程序将清除所有配置并重启恢复到默认配置">
+            <i class="bi bi-arrow-repeat"></i> <span class="btn-label">系统重置</span>
+        </button>
+        <button type="button" class="btn btn-restart" id="restartBtn" title="结束主程序并尝试重启容器">
+            <i class="bi bi-bootstrap-reboot"></i> <span class="btn-label">重启系统</span>
+        </button>
+        <button type="submit" class="btn btn-save" form="settingsForm" title="某些配置需要重启后才能生效，如保存后未生效请重启系统">
+            <i class="bi bi-save"></i> <span class="btn-label">保存配置</span>
+        </button>
+    </div>
+
+    <!-- 加载指示器 -->
+    <div class="loader-container" id="loading-overlay">
+        <div class="loader"></div>
+        <div class="loading-text">请稍后...</div>
+    </div>
+    
+    <!-- 目录选择模态框 -->
+    <div class="modal fade" id="directorySelectorModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">选择目录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">当前路径:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="currentPath" readonly>
+                            <button class="btn btn-sm btn-outline-primary" type="button" id="refreshPath" title="刷新">
+                                <i class="bi bi-arrow-repeat" style="margin-right:0px;"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" type="button" id="newDirBtn" title="新建目录">
+                                <i class="bi bi-folder-plus" style="margin-right:0px;"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" type="button" id="renameDirBtn" title="重命名目录">
+                                <i class="bi bi-pencil" style="margin-right:0px;"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="directory-list" id="directoryList" style="max-height: 400px; overflow-y: auto;">
+                        <!-- 目录列表将通过JavaScript动态填充 -->
+                    </div>
+                </div>
+                <div class="modal-footer" style="width: 100%;">
+                    <button type="button" class="btn btn-sm btn-primary" id="selectDirectoryBtn">选择此目录</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建目录模态框 -->
+    <div class="modal fade" id="newDirModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">新建目录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">目录名称</label>
+                        <input type="text" class="form-control" id="newDirName" placeholder="请输入目录名称">
+                    </div>
+                </div>
+                <div class="modal-footer" style="width: 100%;">
+                    <button type="button" class="btn btn-sm btn-primary" id="confirmNewDirBtn">创建</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重命名目录模态框 -->
+    <div class="modal fade" id="renameDirModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">重命名目录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">新名称</label>
+                        <input type="text" class="form-control" id="renameDirName" placeholder="请输入新名称">
+                        <input type="hidden" id="renameDirPath">
+                    </div>
+                </div>
+                <div class="modal-footer" style="width: 100%;">
+                    <button type="button" class="btn btn-sm btn-primary" id="confirmRenameDirBtn">重命名</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/jquery.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // 初始化Bootstrap tooltips
+        $('[data-toggle="tooltip"]').tooltip();
+
+        // 处理Switch开关的值提交
+        $('#settingsForm').submit(function() {
+            // 处理普通Switch开关
+            $('.switch input[type="checkbox"]').each(function() {
+                var checkbox = $(this);
+                var hiddenInput = $('<input type="hidden" name="' + checkbox.attr('name') + '" value="' + (checkbox.is(':checked') ? 'True' : 'False') + '">');
+                checkbox.after(hiddenInput);
+                checkbox.remove();
+            });
+        });
+
+        // 动态显示/隐藏文件转移线程数设置项
+        function toggleTransferThreadCount() {
+            var multithreadChecked = $('#enable_multithread_transfer').is(':checked');
+            if (multithreadChecked) {
+                $('#form-group-transfer_thread_count').show();
+            } else {
+                $('#form-group-transfer_thread_count').hide();
+            }
+        }
+
+        // 绑定多线程文件转移开关事件
+        $('#enable_multithread_transfer').on('change', toggleTransferThreadCount);
+
+        // 页面加载时初始化
+        toggleTransferThreadCount();
+
+        // 动态显示/隐藏下载器相关配置项
+        function toggleDownloaderFields() {
+            // 根据 notification 开关显示/隐藏 notification_api_key
+            var notificationChecked = $('#notification').is(':checked');
+            if (notificationChecked) {
+                $('#form-group-notification_api_key').show();
+            } else {
+                $('#form-group-notification_api_key').hide();
+            }
+
+            // 根据 actor_nfo 开关显示/隐藏相关配置项
+            var actorNfoChecked = $('#actor_nfo').is(':checked');
+            var nfoFields = [
+                'nfo_exclude_dirs',
+                'nfo_excluded_filenames',
+                'nfo_excluded_subdir_keywords'
+            ];
+            if (actorNfoChecked) {
+                nfoFields.forEach(function(key) {
+                    $('#form-group-' + key).show();
+                });
+            } else {
+                nfoFields.forEach(function(key) {
+                    $('#form-group-' + key).hide();
+                });
+            }
+
+            // 获取下载器类型和下载管理开关
+            var downloader = $('#download_type').val();
+            var mgmtChecked = $('#download_mgmt').is(':checked');
+
+            // 先处理下载管理总开关
+            var downloadFields = [
+                'download_type', 'download_username', 'download_password',
+                'download_host', 'download_port', 'xunlei_device_name', 'xunlei_dir'
+            ];
+            if (!mgmtChecked) {
+                downloadFields.forEach(function(key) {
+                    $('#form-group-' + key).hide();
+                });
+                return;
+            } else {
+                downloadFields.forEach(function(key) {
+                    $('#form-group-' + key).show();
+                });
+            }
+
+            // 只在选择迅雷时显示迅雷相关字段，隐藏download_host、download_port
+            if (downloader === 'xunlei') {
+                $('#form-group-xunlei_device_name').show();
+                $('#form-group-xunlei_dir').show();
+                $('#form-group-xunlei_vendor').show();
+                $('#form-group-download_host').hide();
+                $('#form-group-download_port').hide();
+                $('#testDownloaderBtn').hide();
+            } else if (downloader === 'transmission' || downloader === 'qbittorrent') {
+                $('#form-group-xunlei_device_name').hide();
+                $('#form-group-xunlei_dir').hide();
+                $('#form-group-xunlei_vendor').hide();
+                $('#form-group-download_host').show();
+                $('#form-group-download_port').show();
+                $('#testDownloaderBtn').show();
+            } else {
+                $('#form-group-xunlei_device_name').hide();
+                $('#form-group-xunlei_dir').hide();
+                $('#form-group-xunlei_vendor').hide();
+                $('#form-group-download_host').show();
+                $('#form-group-download_port').show();
+                $('#testDownloaderBtn').show();
+            }
+        }
+
+        // 媒体元数据刮削开关控制显示/隐藏
+        function toggleScrapeFields() {
+            var scrapeChecked = $('#scrape_metadata').is(':checked');
+            $('.scrape-setting').each(function() {
+                if ($(this).attr('id') !== 'form-group-scrape_metadata') {
+                    if (scrapeChecked) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                }
+            });
+        }
+
+        // tinyMediaManager 集成开关控制显示/隐藏
+        function toggleTMMFields() {
+            var tmmEnabled = $('#tmm_enabled').is(':checked');
+            if (tmmEnabled) {
+                $('#form-group-tmm_api_url').show();
+                $('#form-group-tmm_api_key').show();
+                $('#testTMMBtn').parent().show();
+            } else {
+                $('#form-group-tmm_api_url').hide();
+                $('#form-group-tmm_api_key').hide();
+                $('#testTMMBtn').parent().hide();
+            }
+        }
+
+        // 绑定 tinyMediaManager 开关事件
+        $('#tmm_enabled').on('change', toggleTMMFields);
+
+        // 绑定下拉框事件
+        $('#download_type').on('change', toggleDownloaderFields);
+        $('#download_mgmt').on('change', toggleDownloaderFields);
+        $('#notification').on('change', toggleDownloaderFields);
+        $('#actor_nfo').on('change', toggleDownloaderFields);
+        $('#scrape_metadata').on('change', toggleScrapeFields);
+        
+        // 页面加载时初始化
+        toggleDownloaderFields();
+        toggleScrapeFields();
+        toggleTMMFields();
+
+        // 获取 Flask 传递的闪现消息
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    // 设置 Toast 消息内容
+                    $('#toastMessage').text('{{ message }}');
+
+                    // 初始化并显示 Toast
+                    var toast = new bootstrap.Toast(document.getElementById('toast'), {
+                        delay: 2000  // 设置自动关闭的时间，单位为毫秒
+                    });
+                    toast.show();
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        // 测试TMM连接功能
+        $('#testTMMBtn').on('click', function() {
+            var tmmEnabled = $('#tmm_enabled').is(':checked');
+            var tmmApiUrl = $('#tmm_api_url').val();
+            var tmmApiKey = $('#tmm_api_key').val();
+            
+            if (!tmmEnabled) {
+                $('#tmmTestResult').html('<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> TMM功能未启用</span>');
+                return;
+            }
+            
+            if (!tmmApiUrl || !tmmApiKey) {
+                $('#tmmTestResult').html('<span class="text-danger"><i class="bi bi-exclamation-circle"></i> 请填写TMM API URL和API Key</span>');
+                return;
+            }
+            
+            $('#tmmTestResult').html('<span class="text-info"><i class="bi bi-arrow-repeat"></i> 测试中...</span>');
+            
+            // 发送测试请求到后端
+            $.ajax({
+                url: '/test_tmm_connection',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    tmm_api_url: tmmApiUrl,
+                    tmm_api_key: tmmApiKey
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        $('#tmmTestResult').html('<span class="text-success"><i class="bi bi-check-circle"></i> 连接成功！</span>');
+                    } else {
+                        $('#tmmTestResult').html('<span class="text-danger"><i class="bi bi-x-circle"></i> 连接失败：' + response.message + '</span>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#tmmTestResult').html('<span class="text-danger"><i class="bi bi-x-circle"></i> 测试请求失败：' + error + '</span>');
+                }
+            });
+        });
+
+        // 测试 Jackett 连接功能
+        $('#testJackettBtn').on('click', function() {
+            var jackettEnabledEl = $('#jackett_enabled');
+            if (jackettEnabledEl.length && !jackettEnabledEl.is(':checked')) {
+                $('#jackettTestResult').html('<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Jackett 未启用</span>');
+                return;
+            }
+
+            var baseUrl = $('#jackett_base_url').val();
+            var apiKey = $('#jackett_api_key').val();
+            var verifySslEl = $('#jackett_verify_ssl');
+            var verifySsl = verifySslEl.length ? verifySslEl.is(':checked') : true;
+            var timeoutSeconds = $('#jackett_timeout_seconds').val();
+            var retries = $('#jackett_retries').val();
+
+            if (!baseUrl || !apiKey) {
+                $('#jackettTestResult').html('<span class="text-danger"><i class="bi bi-exclamation-circle"></i> 请填写 Jackett 地址和 API Key</span>');
+                return;
+            }
+
+            $('#jackettTestResult').html('<span class="text-info"><i class="bi bi-arrow-repeat"></i> 测试中...</span>');
+
+            $.ajax({
+                url: '/test_jackett_connection',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    jackett_base_url: baseUrl,
+                    jackett_api_key: apiKey,
+                    jackett_verify_ssl: verifySsl,
+                    jackett_timeout_seconds: timeoutSeconds,
+                    jackett_retries: retries
+                }),
+                success: function(response) {
+                    var elapsed = (response.elapsed_ms !== undefined) ? ('（' + response.elapsed_ms + 'ms）') : '';
+                    if (response.success) {
+                        $('#jackettTestResult').html('<span class="text-success"><i class="bi bi-check-circle"></i> 连接成功！' + elapsed + '</span>');
+                    } else {
+                        $('#jackettTestResult').html('<span class="text-danger"><i class="bi bi-x-circle"></i> 连接失败：' + response.message + elapsed + '</span>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    var msg = error;
+                    if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    $('#jackettTestResult').html('<span class="text-danger"><i class="bi bi-x-circle"></i> 测试请求失败：' + msg + '</span>');
+                }
+            });
+        });
+
+        // 测试下载器连接功能
+        $('#testDownloaderBtn').on('click', function() {
+            var downloader = $('#download_type').val();
+            var host = $('#download_host').val();
+            var port = $('#download_port').val();
+            var username = $('#download_username').val();
+            var password = $('#download_password').val();
+            
+            if (downloader !== 'transmission' && downloader !== 'qbittorrent') {
+                $('#testResult').html('<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> 仅支持测试Transmission和qBittorrent</span>');
+                return;
+            }
+            
+            if (!host || !port) {
+                $('#testResult').html('<span class="text-danger"><i class="bi bi-exclamation-circle"></i> 请填写下载器地址和端口</span>');
+                return;
+            }
+            
+            $('#testResult').html('<span class="text-info"><i class="bi bi-arrow-repeat"></i> 测试中...</span>');
+            
+            // 发送测试请求到后端
+            $.ajax({
+                url: '/test_downloader_connection',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    downloader: downloader,
+                    host: host,
+                    port: port,
+                    username: username,
+                    password: password
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        $('#testResult').html('<span class="text-success"><i class="bi bi-check-circle"></i> 连接成功！</span>');
+                    } else {
+                        $('#testResult').html('<span class="text-danger"><i class="bi bi-x-circle"></i> 连接失败：' + response.message + '</span>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#testResult').html('<span class="text-danger"><i class="bi bi-x-circle"></i> 测试请求失败：' + error + '</span>');
+                }
+            });
+        });
+    });
+
+    // 重置按钮的点击事件处理
+    function handleReset() {
+        if (confirm('确定要执行系统重置吗？这将删除所有配置并重启容器，恢复到初始状态。')) {
+            // 显示加载指示器
+            $('#loading-overlay').css('display', 'flex');
+            $('.loading-text').text('正在执行系统重置...');
+            
+            $.ajax({
+                url: '/reset_program',
+                method: 'POST',
+                success: function(response) {
+                    // 更新加载文本
+                    $('.loading-text').text('系统正在重启中，请稍候...');
+                    // 开始轮询系统状态
+                    pollHealthCheck();
+                },
+                error: function(xhr, status, error) {
+                    // 隐藏加载指示器
+                    $('#loading-overlay').hide();
+                    alert('重置失败: ' + xhr.responseJSON.message);
+                }
+            });
+        }
+    }
+
+    // 重启按钮的点击事件处理
+    function handleRestart() {
+        if (confirm('确定要重启系统吗？重启过程可能需要几分钟。')) {
+            // 显示加载指示器
+            $('#loading-overlay').css('display', 'flex');
+            $('.loading-text').text('正在执行系统重启，请稍候...');
+            
+            $.ajax({
+                url: '/restart_program',
+                method: 'POST',
+                success: function(response) {
+                    // 更新加载文本
+                    $('.loading-text').text('系统正在重启中，请稍候...');
+                    // 开始轮询系统状态
+                    pollHealthCheck();
+                },
+                error: function(xhr, status, error) {
+                    // 隐藏加载指示器
+                    $('#loading-overlay').hide();
+                    alert('重启失败: ' + xhr.responseJSON.message);
+                }
+            });
+        }
+    }
+
+    // 保存配置按钮的点击事件处理
+    $('button[form="settingsForm"]').on('click', function(e) {
+        e.preventDefault();
+        
+        // 显示加载指示器
+        $('#loading-overlay').css('display', 'flex');
+        $('.loading-text').text('正在保存配置...');
+        
+        // 提交表单
+        $('#settingsForm').submit();
+    });
+
+    // 绑定按钮事件
+    $('#resetBtn').on('click', handleReset);
+    $('#restartBtn').on('click', handleRestart);
+
+    // 轮询健康检查函数
+    function pollHealthCheck() {
+        const pollInterval = 3000; // 3秒轮询一次
+        const maxAttempts = 40; // 最多尝试40次，约2分钟
+        let attempts = 0;
+        
+        const poll = function() {
+            attempts++;
+            
+            $.ajax({
+                url: '/health_check',
+                method: 'GET',
+                timeout: 3000, // 3秒超时
+                success: function(response) {
+                    if (response.status === 'ok') {
+                        // 系统已重启，跳转到登录页面
+                        $('.loading-text').text('重启成功，正在跳转到登录页面...');
+                        setTimeout(function() {
+                            window.location.href = '/login';
+                        }, 1500);
+                    } else {
+                        // 如果返回了非预期的状态，继续轮询
+                        if (attempts < maxAttempts) {
+                            setTimeout(poll, pollInterval);
+                        } else {
+                            $('#loading-overlay').hide();
+                            if (confirm('系统重启超时，请手动访问登录页面。是否立即跳转？')) {
+                                window.location.href = '/login';
+                            }
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // 请求失败（可能是服务器正在重启），继续轮询
+                    if (attempts < maxAttempts) {
+                        setTimeout(poll, pollInterval);
+                    } else {
+                        $('#loading-overlay').hide();
+                        if (confirm('系统重启超时，请手动访问登录页面。是否立即跳转？')) {
+                            window.location.href = '/login';
+                        }
+                    }
+                }
+            });
+        };
+        
+        // 开始轮询
+        setTimeout(poll, pollInterval);
+    }
+    
+    // 目录选择相关变量
+    let currentSelectedPath = '';
+    let targetInputId = '';
+    
+    // 打开目录选择器
+    function openDirectorySelector(inputId) {
+        targetInputId = inputId;
+        currentSelectedPath = $('#' + inputId).val() || '/';
+        loadDirectory(currentSelectedPath);
+        new bootstrap.Modal(document.getElementById('directorySelectorModal')).show();
+    }
+    
+    // 加载目录内容
+    function loadDirectory(path) {
+        $('#currentPath').val(path);
+        $('#directoryList').html('<div class="directory-loader"><div class="spinner" role="status"></div></div>');
+        
+        $.get('/api/browse_directory', {path: path})
+            .done(function(data) {
+                if (data.error) {
+                    $('#directoryList').html(`<div class="alert alert-danger">${data.error}</div>`);
+                    return;
+                }
+                
+                let html = '<div class="list-group">';
+                data.items.forEach(function(item) {
+                    if (item.is_dir) {
+                        html += `
+                            <a href="#" class="list-group-item list-group-item-action directory-item" 
+                            data-path="${item.path}">
+                                <i class="bi bi-folder me-2"></i>${item.name}
+                            </a>
+                        `;
+                    }
+                });
+                html += '</div>';
+                $('#directoryList').html(html);
+                
+                // 绑定目录项点击事件
+                $('.directory-item').on('click', function(e) {
+                    e.preventDefault();
+                    const path = $(this).data('path');
+                    loadDirectory(path);
+                });
+            })
+            .fail(function(xhr) {
+                let errorMsg = '加载目录失败';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                $('#directoryList').html(`<div class="alert alert-danger">${errorMsg}</div>`);
+            });
+    }
+    
+    // 刷新当前目录
+    $('#refreshPath').on('click', function() {
+        loadDirectory($('#currentPath').val());
+    });
+    
+    // 选择目录按钮事件
+    $('#selectDirectoryBtn').on('click', function() {
+        if (targetInputId) {
+            $('#' + targetInputId).val($('#currentPath').val());
+            bootstrap.Modal.getInstance(document.getElementById('directorySelectorModal')).hide();
+        }
+    });
+    
+    // 绑定选择按钮事件
+    $('.directory-selector-btn').on('click', function() {
+        const targetId = $(this).data('target');
+        openDirectorySelector(targetId);
+    });
+
+    // 新建目录按钮事件
+    $('#newDirBtn').on('click', function() {
+        $('#newDirName').val('');
+        new bootstrap.Modal(document.getElementById('newDirModal')).show();
+    });
+
+    // 确认新建目录按钮事件
+    $('#confirmNewDirBtn').on('click', function() {
+        const dirName = $('#newDirName').val().trim();
+        const currentPath = $('#currentPath').val();
+        
+        if (!dirName) {
+            alert('请输入目录名称');
+            return;
+        }
+        
+        // 发送创建目录请求
+        $.ajax({
+            url: '/api/create_directory',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                path: currentPath,
+                dir_name: dirName
+            }),
+            success: function(response) {
+                bootstrap.Modal.getInstance(document.getElementById('newDirModal')).hide();
+                // 将当前路径设置为新建的目录路径
+                loadDirectory(response.path);
+            },
+            error: function(xhr) {
+                let errorMsg = '创建目录失败';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                alert(errorMsg);
+            }
+        });
+    });
+
+    // 重命名目录按钮事件
+    $('#renameDirBtn').on('click', function() {
+        const currentPath = $('#currentPath').val();
+        // 如果当前路径是根目录，不允许重命名
+        if (currentPath === '/') {
+            alert('不能重命名根目录');
+            return;
+        }
+        
+        const dirName = path.basename(currentPath);
+        $('#renameDirName').val(dirName);
+        $('#renameDirPath').val(currentPath);
+        new bootstrap.Modal(document.getElementById('renameDirModal')).show();
+    });
+
+    // 确认重命名目录按钮事件
+    $('#confirmRenameDirBtn').on('click', function() {
+        const newName = $('#renameDirName').val().trim();
+        const oldPath = $('#renameDirPath').val();
+        const parentPath = path.dirname(oldPath);
+        
+        if (!newName) {
+            alert('请输入新名称');
+            return;
+        }
+        
+        // 发送重命名目录请求
+        $.ajax({
+            url: '/api/rename_directory',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                old_path: oldPath,
+                new_name: newName
+            }),
+            success: function(response) {
+                bootstrap.Modal.getInstance(document.getElementById('renameDirModal')).hide();
+                loadDirectory(parentPath); // 刷新父目录
+            },
+            error: function(xhr) {
+                let errorMsg = '重命名目录失败';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                alert(errorMsg);
+            }
+        });
+    });
+
+    // 添加path工具函数
+    const path = {
+        basename: function(path) {
+            return path.split('/').pop();
+        },
+        dirname: function(path) {
+            const parts = path.split('/');
+            parts.pop();
+            return parts.join('/') || '/';
+        }
+    };
+</script>
+
+{% endblock %}

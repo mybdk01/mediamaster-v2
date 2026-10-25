@@ -1,0 +1,740 @@
+import os
+import sqlite3
+import logging
+import bcrypt
+import re
+
+os.makedirs("/tmp/log", exist_ok=True)
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,  # 设置日志级别为 INFO
+    format="%(asctime)s - %(levelname)s - %(message)s",  # 设置日志格式
+    handlers=[
+        logging.FileHandler("/tmp/log/database_manager.log", mode='w'),  # 输出到文件并清空之前的日志
+        logging.StreamHandler()  # 输出到控制台
+    ]
+)
+
+# 数据库文件路径
+DB_PATH = os.environ.get("DB_PATH") or os.environ.get("DATABASE") or "/config/data.db"
+
+# 定义状态码
+CONFIG_DEFAULT = 0
+CONFIG_MODIFIED = 1
+
+def hash_password(password):
+    """使用 bcrypt 对密码进行哈希"""
+    salt = bcrypt.gensalt()  # 生成盐值
+    hashed = bcrypt.hashpw(password.encode(), salt)  # 使用 bcrypt 哈希密码
+    return hashed.decode()  # 返回解码后的字符串以便存储
+
+def initialize_database():
+    """
+    初始化数据库，检查是否存在并创建或更新表结构。
+    """
+    # 检查数据库文件是否存在
+    if not os.path.exists(DB_PATH):
+        logging.info("数据库文件不存在，正在创建...")
+        create_tables()
+        ensure_all_configs_exist()  # 检查配置项完整性
+        return CONFIG_DEFAULT
+    else:
+        logging.info("数据库文件已存在，正在检查表结构...")
+        check_and_update_tables()
+        ensure_all_configs_exist()  # 检查配置项完整性
+        return check_config_data()
+
+def create_tables():
+    """
+    创建所有表结构，并检查插入默认数据。
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # 创建USERS表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS USERS (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            USERNAME TEXT NOT NULL,
+            NICKNAME TEXT,
+            AVATAR_URL TEXT,
+            PASSWORD TEXT NOT NULL,
+            UNIQUE(USERNAME)
+        )
+    ''')
+
+    # 创建CONFIG表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS CONFIG (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            OPTION TEXT NOT NULL,
+            VALUE TEXT,
+            UNIQUE(OPTION)
+        )
+    ''')
+
+    # 创建LIB_MOVIES表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS LIB_MOVIES (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            TITLE TEXT NOT NULL,
+            YEAR INTEGER,
+            TMDB_ID INTEGER,
+            DOUBAN_ID INTEGER,
+            UNIQUE(TITLE, YEAR)
+        )
+    ''')
+
+    # 创建LIB_TVS表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS LIB_TVS (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            TITLE TEXT NOT NULL,
+            YEAR INTEGER,
+            TMDB_ID INTEGER,
+            DOUBAN_ID INTEGER,
+            UNIQUE(TITLE, YEAR)
+        )
+    ''')
+
+    # 创建LIB_TV_SEASONS表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS LIB_TV_SEASONS (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            TV_ID INTEGER NOT NULL,
+            SEASON INTEGER NOT NULL,
+            YEAR INTEGER,
+            EPISODES INTEGER,
+            FOREIGN KEY (TV_ID) REFERENCES LIB_TVS(ID)
+        )
+    ''')
+
+    # 创建RSS_MOVIES表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS RSS_MOVIES (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            TITLE TEXT NOT NULL,
+            DOUBAN_ID INTEGER,
+            YEAR INTEGER,
+            SUB_TITLE TEXT,
+            URL TEXT,
+            STATUS TEXT DEFAULT '想看',
+            UNIQUE(TITLE, YEAR)
+        )
+    ''')
+
+    # 创建RSS_TVS表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS RSS_TVS (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            TITLE TEXT NOT NULL,
+            DOUBAN_ID INTEGER,
+            YEAR INTEGER,
+            SUB_TITLE TEXT,
+            SEASON INTEGER,
+            EPISODE INTEGER,
+            URL TEXT,
+            STATUS TEXT DEFAULT '想看',
+            UNIQUE(TITLE, YEAR)
+        )
+    ''')
+
+    # 创建MISS_MOVIES表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS MISS_MOVIES (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            TITLE TEXT NOT NULL,
+            YEAR INTEGER,
+            DOUBAN_ID INTEGER,
+            UNIQUE(TITLE, YEAR)
+        )
+    ''')
+
+    # 创建MISS_TVS表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS MISS_TVS (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            TITLE TEXT NOT NULL,
+            YEAR INTEGER,
+            SEASON INTEGER,
+            MISSING_EPISODES TEXT,
+            DOUBAN_ID INTEGER,
+            UNIQUE(TITLE, YEAR, SEASON)
+        )
+    ''')
+
+    # 创建LIB_TV_ALIAS表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS LIB_TV_ALIAS (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            ALIAS TEXT NOT NULL,
+            TARGET_TITLE TEXT NOT NULL,
+            TARGET_SEASON TEXT,
+            UNIQUE(ALIAS)
+        )
+    ''')
+
+    # 插入默认用户数据
+    cursor.execute("SELECT COUNT(*) FROM USERS WHERE USERNAME = 'admin'")
+    if cursor.fetchone()[0] == 0:
+        hashed_password = hash_password("password")
+        cursor.execute('''
+            INSERT INTO USERS (USERNAME, NICKNAME, AVATAR_URL, PASSWORD)
+            VALUES (?, ?, ?, ?)
+        ''', (
+            "admin",
+            "管理员",
+            '/static/img/avatar.png',
+            hashed_password
+        ))
+
+    # 插入默认配置数据
+    default_configs = [
+        ("notification", "False"),
+        ("notification_api_key", "your_api_key"),
+        ("chromedriver_path", ""),
+        ("dateadded", "False"),
+        ("actor_nfo", "False"),
+        ("scrape_metadata", "False"),
+        ("scrape_plot", "True"),
+        ("scrape_actors", "True"),
+        ("scrape_director", "True"),
+        ("scrape_actor_thumb", "True"),
+        ("scrape_ratings", "True"),
+        ("scrape_genres", "True"),
+        ("scrape_tags", "True"),
+        ("scrape_studios", "True"),
+        ("scrape_poster", "True"),
+        ("scrape_fanart", "True"),
+        ("scrape_clearlogo", "True"),
+        ("nfo_exclude_dirs", "Season,Movie,Music,Unknown,backdrops,.actors,.deletedByTMM"),
+        ("nfo_excluded_filenames", "season.nfo,video1.nfo"),
+        ("nfo_excluded_subdir_keywords", "Season,Music,Unknown,backdrops,.actors,.deletedByTMM"),
+        ("media_dir", "/Media"),
+        ("movies_path", "/Media/Movie"),
+        ("anime_path", "/Media/Anime"),
+        ("variety_path", "/Media/Variety"),
+        ("episodes_path", "/Media/Episodes"),
+        ("unknown_path", "/Media/Unknown"),
+        ("download_dir", "/Downloads"),
+        ("download_action", "move"),
+        ("download_excluded_filenames", "【更多"),
+        ("movie_naming_format", "{title} ({year}) {resolution}"),
+        ("tv_naming_format", "{title} - S{season}E{episode} - {episode_title}"),
+        ("anime_naming_format", "{title} - S{season}E{episode} - {episode_title}"),
+        ("variety_naming_format", "{title} - S{season}E{episode} - {episode_title}"),
+        ("movie_folder_naming_format", "{title} ({year})"),
+        ("tv_folder_naming_format", "{title} ({year})"),
+        ("anime_folder_naming_format", "{title} ({year})"),
+        ("variety_folder_naming_format", "{title} ({year})"),
+        ("file_overwrite_option", "skip"),
+        ("enable_multithread_transfer", "False"),
+        ("transfer_thread_count", "4"),
+        ("douban_api_key", "0ac44ae016490db2204ce0a042db2916"),
+        ("douban_cookie", "your_douban_cookie_here"),
+        ("douban_user_ids", "your_douban_id"),
+        ("tmdb_base_url", "https://api.tmdb.org"),
+        ("tmdb_api_key", "d3485673d99d293743c74df52fd70e28"),
+        ("ocr_api_key", "your_ocr_api_key"),
+        ("tmm_enabled", "False"), 
+        ("tmm_api_url", "http://127.0.0.1:7878"), 
+        ("tmm_api_key", "19fa906a-5e4c-4d0b-beb7-7a65d8b0f3f6"), 
+        ("download_mgmt", "False"),
+        ("download_type", "transmission"),
+        ("download_username", "username"),
+        ("download_password", "password"),
+        ("download_host", "127.0.0.1"),
+        ("download_port", "9091"),
+        ("delete_with_files", "False"),
+        ("auto_delete_completed_tasks", "False"),
+        ("xunlei_device_name", "设备名称"),
+        ("xunlei_dir", "下载目录"),
+        ("xunlei_vendor", ""),
+        ("bt_login_username", "username"),
+        ("bt_login_password", "password"),
+        ("bt0_login_username", "username"),
+        ("bt0_login_password", "password"),
+        ("gy_login_username", "username"),
+        ("gy_login_password", "password"),
+        ("preferred_resolution", "1080p"),
+        ("fallback_resolution", "2160p"),
+        ("resources_exclude_keywords", "120帧,杜比视界,hdr"),
+        ("resources_prefer_keywords", "60帧,高码版"),
+        ("bt_movie_base_url", "https://10001.baidubaidu.win"),
+        ("bt_tv_base_url", "https://10002.baidubaidu.win"),
+        ("bt0_base_url", "https://web2.mukaku.com"),
+        ("btys_base_url", "https://www.btbtlb.com"),
+        ("gy_base_url", "https://www.xn--wcv59z.com"),
+        ("btsj6_base_url", "https://www.btsj6.com"),
+        ("1lou_base_url", "https://www.1lou.vip"),
+        ("seedhub_base_url", "https://seeduck.cc"),
+        ("jackett_base_url", "http://127.0.0.1:9117"),
+        ("jackett_api_key", ""),
+        ("jackett_verify_ssl", "True"),
+        ("jackett_timeout_seconds", "90"),
+        ("jackett_retries", "2"),
+        ("bthd_enabled", "False"),
+        ("hdtv_enabled", "False"),
+        ("bt0_enabled", "True"),
+        ("btys_enabled", "True"),
+        ("gy_enabled", "False"),
+        ("btsj6_enabled", "True"),
+        ("1lou_enabled", "False"),
+        ("seedhub_enabled", "True"),
+        ("jackett_enabled", "False"),
+        ("1lou_ok1_cookie", "8PbJZYCzXpLlGOhwwVsn70gm69fg4y2vORAniXidCSBKzz3rKHibfdtHop4PVU9DTATcR7ifHfLbL3ZmriJIpDcjg8AbpYPeIoNGjzsgAEd3jZ5fAAQfU7N"),
+        ("1lou_max_hits", "8"),
+        ("run_interval_hours", "6")
+    ]
+
+    for option, value in default_configs:
+        cursor.execute("SELECT COUNT(*) FROM CONFIG WHERE OPTION = ?", (option,))
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("INSERT INTO CONFIG (OPTION, VALUE) VALUES (?, ?)", (option, value))
+
+    conn.commit()
+    conn.close()
+    logging.info("数据库表结构及默认数据已创建。")
+
+def migrate_rss_tables_with_status():
+    """
+    迁移 RSS_MOVIES 和 RSS_TVS 表，添加 STATUS 字段
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # 检查 RSS_MOVIES 表是否已有 STATUS 字段
+    cursor.execute("PRAGMA table_info(RSS_MOVIES)")
+    columns = cursor.fetchall()
+    status_column_exists_in_movies = any(column[1] == 'STATUS' for column in columns)
+    
+    # 如果没有 STATUS 字段，添加它
+    if not status_column_exists_in_movies:
+        try:
+            cursor.execute("ALTER TABLE RSS_MOVIES ADD COLUMN STATUS TEXT DEFAULT '想看'")
+            logging.info("已向 RSS_MOVIES 表添加 STATUS 字段")
+        except sqlite3.OperationalError as e:
+            logging.warning(f"添加 STATUS 字段到 RSS_MOVIES 表时出错: {e}")
+    
+    # 检查 RSS_TVS 表是否已有 STATUS 字段
+    cursor.execute("PRAGMA table_info(RSS_TVS)")
+    columns = cursor.fetchall()
+    status_column_exists_in_tvs = any(column[1] == 'STATUS' for column in columns)
+    
+    # 如果没有 STATUS 字段，添加它
+    if not status_column_exists_in_tvs:
+        try:
+            cursor.execute("ALTER TABLE RSS_TVS ADD COLUMN STATUS TEXT DEFAULT '想看'")
+            logging.info("已向 RSS_TVS 表添加 STATUS 字段")
+        except sqlite3.OperationalError as e:
+            logging.warning(f"添加 STATUS 字段到 RSS_TVS 表时出错: {e}")
+    
+    conn.commit()
+    conn.close()
+
+def migrate_miss_tvs_table():
+    """
+    迁移 MISS_TVS 表以兼容新的唯一性约束（包含 SEASON 字段）
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # 检查当前表结构是否包含 SEASON 字段
+    cursor.execute("PRAGMA table_info(MISS_TVS)")
+    columns = cursor.fetchall()
+    season_column_exists = any(column[1] == 'SEASON' for column in columns)
+    
+    # 如果没有 SEASON 字段，需要迁移表结构
+    if not season_column_exists:
+        logging.info("正在迁移 MISS_TVS 表以添加 SEASON 字段和更新唯一性约束...")
+        
+        # 1. 重命名原表
+        cursor.execute("ALTER TABLE MISS_TVS RENAME TO MISS_TVS_old")
+        
+        # 2. 创建新表（包含 SEASON 字段和新的唯一性约束）
+        cursor.execute('''
+            CREATE TABLE MISS_TVS (
+                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                TITLE TEXT NOT NULL,
+                YEAR INTEGER,
+                SEASON INTEGER,
+                MISSING_EPISODES TEXT,
+                DOUBAN_ID INTEGER,
+                UNIQUE(TITLE, YEAR, SEASON)
+            )
+        ''')
+        
+        # 3. 迁移数据（为原有的记录设置 SEASON 为 NULL 或默认值）
+        cursor.execute('''
+            INSERT INTO MISS_TVS (ID, TITLE, YEAR, SEASON, MISSING_EPISODES, DOUBAN_ID)
+            SELECT ID, TITLE, YEAR, NULL as SEASON, MISSING_EPISODES, DOUBAN_ID
+            FROM MISS_TVS_old
+        ''')
+        
+        # 4. 删除旧表
+        cursor.execute("DROP TABLE MISS_TVS_old")
+        
+        logging.info("MISS_TVS 表迁移完成")
+    
+    # 检查是否需要更新唯一性约束
+    cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='MISS_TVS'")
+    table_sql = cursor.fetchone()
+    if table_sql and 'UNIQUE(TITLE, YEAR, SEASON)' not in table_sql[0]:
+        logging.info("正在更新 MISS_TVS 表的唯一性约束...")
+        
+        # 重命名原表
+        cursor.execute("ALTER TABLE MISS_TVS RENAME TO MISS_TVS_old")
+        
+        # 创建新表（包含新的唯一性约束）
+        cursor.execute('''
+            CREATE TABLE MISS_TVS (
+                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                TITLE TEXT NOT NULL,
+                YEAR INTEGER,
+                SEASON INTEGER,
+                MISSING_EPISODES TEXT,
+                DOUBAN_ID INTEGER,
+                UNIQUE(TITLE, YEAR, SEASON)
+            )
+        ''')
+        
+        # 迁移数据
+        cursor.execute('''
+            INSERT INTO MISS_TVS (ID, TITLE, YEAR, SEASON, MISSING_EPISODES, DOUBAN_ID)
+            SELECT ID, TITLE, YEAR, SEASON, MISSING_EPISODES, DOUBAN_ID
+            FROM MISS_TVS_old
+        ''')
+        
+        # 删除旧表
+        cursor.execute("DROP TABLE MISS_TVS_old")
+        
+        logging.info("MISS_TVS 表唯一性约束更新完成")
+    
+    conn.commit()
+    conn.close()
+
+def migrate_douban_config():
+    """
+    迁移豆瓣配置项，从 douban_rss_url 迁移到 douban_user_ids
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # 检查是否存在旧的 douban_rss_url 配置项
+    cursor.execute("SELECT VALUE FROM CONFIG WHERE OPTION = 'douban_rss_url'")
+    row = cursor.fetchone()
+    
+    if row:
+        old_rss_url = row[0]
+        logging.info(f"检测到旧版豆瓣RSS URL配置: {old_rss_url}")
+        
+        # 从URL中提取用户ID
+        user_ids = extract_douban_user_ids(old_rss_url)
+        
+        # 更新或插入新的 douban_user_ids 配置项
+        cursor.execute("SELECT COUNT(*) FROM CONFIG WHERE OPTION = 'douban_user_ids'")
+        if cursor.fetchone()[0] > 0:
+            cursor.execute("UPDATE CONFIG SET VALUE = ? WHERE OPTION = 'douban_user_ids'", (user_ids,))
+        else:
+            cursor.execute("INSERT INTO CONFIG (OPTION, VALUE) VALUES (?, ?)", ("douban_user_ids", user_ids))
+        
+        # 删除旧的 douban_rss_url 配置项
+        cursor.execute("DELETE FROM CONFIG WHERE OPTION = 'douban_rss_url'")
+        logging.info(f"已迁移豆瓣配置项，用户ID: {user_ids}")
+    
+    conn.commit()
+    conn.close()
+
+def extract_douban_user_ids(rss_url):
+    """
+    从豆瓣RSS URL中提取用户ID，支持多个URL
+    """
+    if not rss_url:
+        return "your_douban_id"
+    
+    # 匹配豆瓣用户ID的正则表达式
+    pattern = r'people/(\d+)/interests'
+    user_ids = []
+    
+    # 如果是多个URL（用逗号分隔），分割处理
+    urls = rss_url.split(',')
+    for url in urls:
+        url = url.strip()
+        match = re.search(pattern, url)
+        if match:
+            user_id = match.group(1)
+            if user_id not in user_ids:
+                user_ids.append(user_id)
+    
+    # 如果没有找到任何用户ID，返回默认值
+    if not user_ids:
+        return "your_douban_id"
+    
+    return ",".join(user_ids)
+
+def check_and_update_tables():
+    """
+    检查表是否存在，如果不存在则创建。
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # 定义所有表名
+    tables = [
+        "USERS", "CONFIG", "LIB_MOVIES", "LIB_TVS", "LIB_TV_SEASONS",
+        "RSS_MOVIES", "RSS_TVS", "MISS_MOVIES", "MISS_TVS", "LIB_TV_ALIAS"
+    ]
+
+    for table in tables:
+        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
+        if cursor.fetchone() is None:
+            logging.info(f"表 {table} 不存在，正在创建...")
+            create_tables()
+            break
+
+    # 检查并迁移 MISS_TVS 表以确保兼容性
+    migrate_miss_tvs_table()
+    
+    # 迁移豆瓣配置项
+    migrate_douban_config()
+    
+    # 添加 STATUS 字段到 RSS 表
+    migrate_rss_tables_with_status()
+
+    conn.close()
+
+def ensure_all_configs_exist():
+    """
+    检查是否每一个配置项都存在，如果有缺失的配置项，则插入默认值。
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # 默认配置项 (移除了 douban_rss_url，添加了 douban_user_ids)
+    default_configs = [
+        ("notification", "False"),
+        ("notification_api_key", "your_api_key"),
+        ("chromedriver_path", ""),
+        ("dateadded", "False"),
+        ("actor_nfo", "False"),
+        ("scrape_metadata", "False"),
+        ("scrape_plot", "True"),
+        ("scrape_actors", "True"),
+        ("scrape_director", "True"),
+        ("scrape_actor_thumb", "True"),
+        ("scrape_ratings", "True"),
+        ("scrape_genres", "True"),
+        ("scrape_tags", "True"),
+        ("scrape_studios", "True"),
+        ("scrape_poster", "True"),
+        ("scrape_fanart", "True"),
+        ("scrape_clearlogo", "True"),
+        ("nfo_exclude_dirs", "Season,Movie,Music,Unknown,backdrops,.actors,.deletedByTMM"),
+        ("nfo_excluded_filenames", "season.nfo,video1.nfo"),
+        ("nfo_excluded_subdir_keywords", "Season,Music,Unknown,backdrops,.actors,.deletedByTMM"),
+        ("media_dir", "/Media"),
+        ("movies_path", "/Media/Movie"),
+        ("anime_path", "/Media/Anime"),
+        ("variety_path", "/Media/Variety"),
+        ("episodes_path", "/Media/Episodes"),
+        ("unknown_path", "/Media/Unknown"),
+        ("download_dir", "/Downloads"),
+        ("download_action", "move"),
+        ("download_excluded_filenames", "【更多"),
+        ("movie_naming_format", "{title} ({year}) {resolution}"),
+        ("tv_naming_format", "{title} - S{season}E{episode} - {episode_title}"),
+        ("anime_naming_format", "{title} - S{season}E{episode} - {episode_title}"),
+        ("variety_naming_format", "{title} - S{season}E{episode} - {episode_title}"),
+        ("movie_folder_naming_format", "{title} ({year})"),
+        ("tv_folder_naming_format", "{title} ({year})"),
+        ("anime_folder_naming_format", "{title} ({year})"),
+        ("variety_folder_naming_format", "{title} ({year})"),
+        ("file_overwrite_option", "skip"),
+        ("enable_multithread_transfer", "False"),
+        ("transfer_thread_count", "4"),
+        ("douban_api_key", "0ac44ae016490db2204ce0a042db2916"),
+        ("douban_cookie", "your_douban_cookie_here"),
+        ("douban_user_ids", "your_douban_id"),
+        ("tmdb_base_url", "https://api.tmdb.org"),
+        ("tmdb_api_key", "d3485673d99d293743c74df52fd70e28"),
+        ("ocr_api_key", "your_ocr_api_key"),
+        ("tmm_enabled", "False"), 
+        ("tmm_api_url", "http://127.0.0.1:7878"), 
+        ("tmm_api_key", "19fa906a-5e4c-4d0b-beb7-7a65d8b0f3f6"), 
+        ("download_mgmt", "False"),
+        ("download_type", "transmission"),
+        ("download_username", "username"),
+        ("download_password", "password"),
+        ("download_host", "127.0.0.1"),
+        ("download_port", "9091"),
+        ("delete_with_files", "False"),
+        ("auto_delete_completed_tasks", "False"),
+        ("xunlei_device_name", "设备名称"),
+        ("xunlei_dir", "下载目录"),
+        ("xunlei_vendor", ""),
+        ("bt_login_username", "username"),
+        ("bt_login_password", "password"),
+        ("bt0_login_username", "username"),
+        ("bt0_login_password", "password"),
+        ("gy_login_username", "username"),
+        ("gy_login_password", "password"),
+        ("preferred_resolution", "1080p"),
+        ("fallback_resolution", "2160p"),
+        ("resources_exclude_keywords", "120帧,杜比视界,hdr"),
+        ("resources_prefer_keywords", "60帧,高码版"),
+        ("bt_movie_base_url", "https://10001.baidubaidu.win"),
+        ("bt_tv_base_url", "https://10002.baidubaidu.win"),
+        ("bt0_base_url", "https://web2.mukaku.com"),
+        ("btys_base_url", "https://www.btbtlb.com"),
+        ("gy_base_url", "https://www.xn--wcv59z.com"),
+        ("btsj6_base_url", "https://www.btsj6.com"),
+        ("1lou_base_url", "https://www.1lou.vip"),
+        ("seedhub_base_url", "https://seeduck.cc"),
+        ("jackett_base_url", "http://127.0.0.1:9117"),
+        ("jackett_api_key", ""),
+        ("jackett_verify_ssl", "True"),
+        ("jackett_timeout_seconds", "90"),
+        ("jackett_retries", "2"),
+        ("bthd_enabled", "False"),
+        ("hdtv_enabled", "False"),
+        ("bt0_enabled", "True"),
+        ("btys_enabled", "True"),
+        ("gy_enabled", "False"),
+        ("btsj6_enabled", "True"),
+        ("1lou_enabled", "False"),
+        ("seedhub_enabled", "True"),
+        ("jackett_enabled", "False"),
+        ("1lou_max_hits", "8"),
+        ("1lou_ok1_cookie", "8PbJZYCzXpLlGOhwwVsn70gm69fg4y2vORAniXidCSBKzz3rKHibfdtHop4PVU9DTATcR7ifHfLbL3ZmriJIpDcjg8AbpYPeIoNGjzsgAEd3jZ5fAAQfU7N"),
+        ("run_interval_hours", "6")
+    ]
+
+    # 检查并插入缺失的配置项
+    for option, value in default_configs:
+        cursor.execute("SELECT COUNT(*) FROM CONFIG WHERE OPTION = ?", (option,))
+        if cursor.fetchone()[0] == 0:
+            logging.info(f"配置项 {option} 缺失，正在更新配置项...")
+            cursor.execute("INSERT INTO CONFIG (OPTION, VALUE) VALUES (?, ?)", (option, value))
+
+    conn.commit()
+    conn.close()
+    logging.info("配置项已更新。")
+
+def check_config_data():
+    """
+    检查配置数据是否为默认数据。
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    default_configs = {
+        "notification": "False",
+        "notification_api_key": "your_api_key",
+        "chromedriver_path": "",
+        "dateadded": "False",
+        "actor_nfo": "False",
+        "scrape_metadata": "False",
+        "scrape_plot": "True",
+        "scrape_actors": "True",
+        "scrape_director": "True",
+        "scrape_actor_thumb": "True",
+        "scrape_ratings": "True",
+        "scrape_genres": "True",
+        "scrape_tags": "True",
+        "scrape_studios": "True",
+        "scrape_poster": "True",
+        "scrape_fanart": "True",
+        "scrape_clearlogo": "True",
+        "nfo_exclude_dirs": "Season,Movie,Music,Unknown,backdrops,.actors,.deletedByTMM",
+        "nfo_excluded_filenames": "season.nfo,video1.nfo",
+        "nfo_excluded_subdir_keywords": "Season,Music,Unknown,backdrops,.actors,.deletedByTMM",
+        "media_dir": "/Media",
+        "movies_path": "/Media/Movie",
+        "anime_path": "/Media/Anime",
+        "variety_path": "/Media/Variety",
+        "episodes_path": "/Media/Episodes",
+        "unknown_path": "/Media/Unknown",
+        "download_dir": "/Downloads",
+        "download_action": "move",
+        "download_excluded_filenames": "【更多",
+        "movie_naming_format": "{title} ({year}) {resolution}",
+        "tv_naming_format": "{title} - S{season}E{episode} - {episode_title}",
+        "anime_naming_format": "{title} - S{season}E{episode} - {episode_title}",
+        "variety_naming_format": "{title} - S{season}E{episode} - {episode_title}",
+        "movie_folder_naming_format": "{title} ({year})",
+        "tv_folder_naming_format": "{title} ({year})",
+        "anime_folder_naming_format": "{title} ({year})",
+        "variety_folder_naming_format": "{title} ({year})",
+        "file_overwrite_option": "skip",
+        "enable_multithread_transfer": "False",
+        "transfer_thread_count": "4",
+        "douban_api_key": "0ac44ae016490db2204ce0a042db2916",
+        "douban_cookie": "your_douban_cookie_here",
+        "douban_user_ids": "your_douban_id",
+        "tmdb_base_url": "https://api.tmdb.org",
+        "tmdb_api_key": "d3485673d99d293743c74df52fd70e28",
+        "ocr_api_key": "your_ocr_api_key",
+        "tmm_enabled": "False",
+        "tmm_api_url": "http://127.0.0.1:7878",
+        "tmm_api_key": "19fa906a-5e4c-4d0b-beb7-7a65d8b0f3f6",
+        "download_mgmt": "False",
+        "download_type": "transmission",
+        "download_username": "username",
+        "download_password": "password",
+        "download_host": "127.0.0.1",
+        "download_port": "9091",
+        "delete_with_files": "False",
+        "auto_delete_completed_tasks": "False",
+        "xunlei_device_name": "设备名称",
+        "xunlei_dir": "下载目录",
+        "xunlei_vendor": "",
+        "bt_login_username": "username",
+        "bt_login_password": "password",
+        "bt0_login_username": "username",
+        "bt0_login_password": "password",
+        "gy_login_username": "username",
+        "gy_login_password": "password",
+        "preferred_resolution": "1080p",
+        "fallback_resolution": "2160p",
+        "resources_exclude_keywords": "120帧,杜比视界,hdr",
+        "resources_prefer_keywords": "60帧,高码版",
+        "bt_movie_base_url": "https://10001.baidubaidu.win",
+        "bt_tv_base_url": "https://10002.baidubaidu.win",
+        "bt0_base_url": "https://web2.mukaku.com",
+        "btys_base_url": "https://www.btbtlb.com",
+        "gy_base_url": "https://www.xn--wcv59z.com",
+        "btsj6_base_url": "https://www.btsj6.com",
+        "1lou_base_url": "https://www.1lou.vip",
+        "seedhub_base_url": "https://seeduck.cc",
+        "jackett_base_url": "http://127.0.0.1:9117",
+        "jackett_api_key": "",
+        "jackett_verify_ssl": "True",
+        "jackett_timeout_seconds": "90",
+        "jackett_retries": "2",
+        "bthd_enabled": "False",
+        "hdtv_enabled": "False",
+        "bt0_enabled": "True",
+        "btys_enabled": "True",
+        "gy_enabled": "False",
+        "btsj6_enabled": "True",
+        "1lou_enabled": "False",
+        "seedhub_enabled": "True",
+        "jackett_enabled": "False",
+        "1lou_ok1_cookie": "8PbJZYCzXpLlGOhwwVsn70gm69fg4y2vORAniXidCSBKzz3rKHibfdtHop4PVU9DTATcR7ifHfLbL3ZmriJIpDcjg8AbpYPeIoNGjzsgAEd3jZ5fAAQfU7N",
+        "1lou_max_hits": "8",
+        "run_interval_hours": "6"
+    }
+
+    for option, value in default_configs.items():
+        cursor.execute("SELECT VALUE FROM CONFIG WHERE OPTION = ?", (option,))
+        row = cursor.fetchone()
+        if row is None or row[0] != value:
+            conn.close()
+            return CONFIG_MODIFIED
+
+    conn.close()
+    return CONFIG_DEFAULT
+
+if __name__ == "__main__":
+    status_code = initialize_database()
+    logging.info(f"数据库初始化状态码: {status_code}")

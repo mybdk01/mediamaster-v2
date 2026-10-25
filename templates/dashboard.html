@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+{% block title %}系统仪表{% endblock %}
+{% block content %}
+
+<div class="content-wrapper">
+    <div class="row fade-in">
+        <!-- 媒体统计模块 -->
+        <div class="col-md-12">
+            <section class="card mb-4">
+                <div class="card-header">媒体信息</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 col-sm-12">
+                            <div class="stat-item" data-target="/library?type=movies">
+                                <div class="stat-icon">
+                                    <img src="{{ url_for('static', filename='img/movie.png') }}" alt="电影图标">
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-number">{{ total_movies }}</div>
+                                    <div class="stat-name">电影</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-12">
+                            <div class="stat-item" data-target="/library?type=tvs">
+                                <div class="stat-icon">
+                                    <img src="{{ url_for('static', filename='img/tv.png') }}" alt="电视图标">
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-number">{{ total_tvs }}</div>
+                                    <div class="stat-name">电视</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-12">
+                            <div class="stat-item" data-target="/library?type=tvs">
+                                <div class="stat-icon">
+                                    <img src="{{ url_for('static', filename='img/episode.png') }}" alt="剧集图标">
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-number">{{ total_episodes }}</div>
+                                    <div class="stat-name">剧集</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 系统资源模块 -->
+        <div class="col-md-12">
+            <section class="card mb-4">
+                <div class="card-header">系统资源</div>
+                <div class="card-body">
+                    <div class="row card-column">
+                        <!-- CPU模块 -->
+                        <div class="col-xl-3 col-md-6 col-12">
+                            <div class="resource-item">
+                                <div class="gauge-container" id="cpu-usage-gauge">
+                                    <svg width="100%" height="100%">
+                                        <circle class="background" cx="40" cy="40" r="35" />
+                                        <circle class="foreground" cx="40" cy="40" r="35" />
+                                        <text class="gauge-text" x="50%" y="50%" text-anchor="middle" dy=".3em">0%</text>
+                                    </svg>
+                                </div>
+                                <div class="network-info">
+                                    <div class="network-value" id="cpu-core-info">0核 0线程</div>
+                                    <div class="network-label">CPU资源</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 内存模块 -->
+                        <div class="col-xl-3 col-md-6 col-12">
+                            <div class="resource-item">
+                                <div class="gauge-container" id="memory-usage-gauge">
+                                    <svg width="100%" height="100%">
+                                        <circle class="background" cx="40" cy="40" r="35" />
+                                        <circle class="foreground" cx="40" cy="40" r="35" />
+                                        <text class="gauge-text" x="50%" y="50%" text-anchor="middle" dy=".3em">0%</text>
+                                    </svg>
+                                </div>
+                                <div class="network-info">
+                                    <div class="network-value" id="memory-used-total">0 GB / 0 GB</div>
+                                    <div class="network-label">内存资源</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 存储模块 -->
+                        <div class="col-xl-3 col-md-6 col-12">
+                            <div class="resource-item">
+                                <div class="gauge-container" id="disk-usage-progress">
+                                    <svg width="100%" height="100%">
+                                        <circle class="background" cx="40" cy="40" r="35" />
+                                        <circle class="foreground" cx="40" cy="40" r="35" />
+                                        <text class="gauge-text" x="50%" y="50%" text-anchor="middle" dy=".3em">0%</text>
+                                    </svg>
+                                </div>
+                                <div class="network-info">
+                                    <div class="network-value" id="disk-usage-value">0 GB</div>
+                                    <div class="network-label">存储资源</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 网络模块 -->
+                        <div class="col-xl-3 col-md-6 col-12">
+                            <div class="resource-item">
+                                <div class="network-speed-chart" id="network-speed-chart">
+                                    <svg id="speedChart" width="100%" height="100%">
+                                        <defs>
+                                            <linearGradient id="uploadGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stop-color="#0090FF" stop-opacity="0.3" />
+                                                <stop offset="100%" stop-color="#0090FF" stop-opacity="0.1" />
+                                            </linearGradient>
+                                            <linearGradient id="downloadGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stop-color="#36CE9E" stop-opacity="0.3" />
+                                                <stop offset="100%" stop-color="#36CE9E" stop-opacity="0.1" />
+                                            </linearGradient>
+                                        </defs>
+                                        <rect width="100%" height="100%" fill="transparent" />
+                                        <path id="bottomPath" d="M 0 80 L 200 80 Z" fill="none" />
+                                        <path id="uploadPath" fill="url(#uploadGradient)" stroke="#0090FF" stroke-width="2" d="" />
+                                        <path id="downloadPath" fill="url(#downloadGradient)" stroke="#36CE9E" stroke-width="2" d="" />
+                                    </svg>
+                                </div>
+                                <div class="stat-icon network-stat-icon" id="noActivityIcon">
+                                    <img src="{{ url_for('static', filename='img/net.png') }}" alt="网络图标">
+                                </div>
+                                <div class="network-info">
+                                    <div class="network-speed">
+                                        <div class="upload-speed" id="upload-speed">0 KB/s</div>
+                                        <div class="download-speed" id="download-speed">0 KB/s</div>
+                                    </div>
+                                    <div class="network-label">下载速率</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 站点状态模块 -->
+        <div class="col-md-12">
+            <section class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>站点状态</span>
+                    <span>
+                        <i class="bi bi-arrow-clockwise" id="refresh-site-status" title="重新检测站点状态" style="color: #ffffff;"></i>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div id="site-status-content">
+                        <div class="d-flex justify-content-center align-items-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                            <span class="ms-2">正在加载站点状态...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 系统进程模块 -->
+        <div class="col-md-12">
+            <section class="card mb-4">
+                <div class="card-header">系统进程</div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>任务名称</th>
+                                <th>CPU占用率</th>
+                                <th>内存占用率</th>
+                                <th>运行时长</th>
+                            </tr>
+                        </thead>
+                        <tbody id="system-processes">
+                            <!-- 进程数据将动态插入到这里 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+<script>
+$(document).ready(function() {
+    // 为每个 stat-item 添加点击事件监听器
+    $('.stat-item').on('click', function() {
+        var target = $(this).data('target');
+        if (target) {
+            window.location.href = target;
+        }
+    });
+
+    // 为刷新图标添加鼠标悬停效果
+    $('#refresh-site-status').hover(
+        function() {
+            $(this).css('cursor', 'pointer');
+            $(this).css('opacity', '0.8');
+        },
+        function() {
+            $(this).css('opacity', '1');
+        }
+    );
+
+    // 站点名称映射
+    const siteNameMap = {
+        'BT0': '不太灵影视',
+        'GY': '观影',
+        'BTYS': 'BT影视',
+        'BTHD': '高清影视之家',
+        'HDTV': '高清剧集网',
+        'BTSJ6': 'BT世界网',
+        'SeedHub': 'SeedHub',
+        'Jackett': 'Jackett',
+        '1LOU': 'BT之家(1LOU)'
+    };
+
+    // 初始化SVG图表
+    var chartDom = document.getElementById('speedChart');
+    var uploadPath = document.getElementById('uploadPath');
+    var downloadPath = document.getElementById('downloadPath');
+    var xAxisData = [];
+    var yAxisData1 = [];
+    var yAxisData2 = [];
+    var maxSpeed = 0; // 用于存储最大速率值
+    var isUpdating = true; // 标志变量，控制是否继续更新图表数据
+
+    function updateChart() {
+        if (xAxisData.length < 2) {
+            return; // 至少需要两个点才能绘制曲线
+        }
+
+        var d1 = 'M ' + (0) + ' ' + (80 - (yAxisData1[0] || 0) * 80 / maxSpeed);
+        var d2 = 'M ' + (0) + ' ' + (80 - (yAxisData2[0] || 0) * 80 / maxSpeed);
+
+        for (var i = 1; i < xAxisData.length; i++) {
+            var x0 = (i - 1) * 200 / xAxisData.length;
+            var y01 = 80 - (yAxisData1[i - 1] || 0) * 80 / maxSpeed;
+            var y02 = 80 - (yAxisData2[i - 1] || 0) * 80 / maxSpeed;
+
+            var x1 = i * 200 / xAxisData.length;
+            var y1 = 80 - (yAxisData1[i] || 0) * 80 / maxSpeed;
+            var y2 = 80 - (yAxisData2[i] || 0) * 80 / maxSpeed;
+
+            // 计算控制点
+            var xc1 = x0 + (x1 - x0) / 2;
+            var yc1 = y01;
+            var xc2 = x0 + (x1 - x0) / 2;
+            var yc2 = y1;
+
+            d1 += ' C ' + xc1 + ' ' + yc1 + ' ' + xc2 + ' ' + yc2 + ' ' + x1 + ' ' + y1;
+
+            xc1 = x0 + (x1 - x0) / 2;
+            yc1 = y02;
+            xc2 = x0 + (x1 - x0) / 2;
+            yc2 = y2;
+
+            d2 += ' C ' + xc1 + ' ' + yc1 + ' ' + xc2 + ' ' + yc2 + ' ' + x1 + ' ' + y2;
+        }
+
+        // 获取最后一个数据点的 y 值
+        var lastY1 = 80 - (yAxisData1[yAxisData1.length - 1] || 0) * 80 / maxSpeed;
+        var lastY2 = 80 - (yAxisData2[yAxisData2.length - 1] || 0) * 80 / maxSpeed;
+
+        // 添加底部路径并连接到实时速率位置
+        d1 += ' L ' + (200) + ' ' + lastY1 + ' L ' + (200) + ' ' + (80) + ' L ' + (0) + ' ' + (80) + ' Z';
+        d2 += ' L ' + (200) + ' ' + lastY2 + ' L ' + (200) + ' ' + (80) + ' L ' + (0) + ' ' + (80) + ' Z';
+
+        uploadPath.setAttribute('d', d1);
+        downloadPath.setAttribute('d', d2);
+
+        // 检查上传和下载速率是否为0
+        var uploadSpeed = parseFloat($('#upload-speed').text().replace(/[^0-9.]/g, ''));
+        var downloadSpeed = parseFloat($('#download-speed').text().replace(/[^0-9.]/g, ''));
+
+        if (uploadSpeed === 0 && downloadSpeed === 0) {
+            $('#network-speed-chart').hide();
+            $('#noActivityIcon').show();
+            isUpdating = false; // 停止更新图表数据
+        } else {
+            $('#network-speed-chart').show();
+            $('#noActivityIcon').hide();
+            isUpdating = true; // 继续更新图表数据
+        }
+    }
+
+    // 更新系统资源时更新图表数据
+    function updateSystemResources() {
+        $.ajax({
+            url: '/api/system_resources',
+            method: 'GET',
+            success: function(data) {
+                // 更新CPU利用率
+                var cpuUsage = data.cpu_usage_percent;
+                $('#cpu-usage-gauge .gauge-text').text(cpuUsage + '%');
+                updateGauge('cpu-usage-gauge', cpuUsage);
+
+                // 更新CPU核心信息
+                var cpuCountLogical = data.cpu_count_logical;
+                var cpuCountPhysical = data.cpu_count_physical;
+                $('#cpu-core-info').text(cpuCountPhysical + '核 ' + cpuCountLogical + '线程');
+
+                // 更新内存利用率
+                var memoryUsage = data.memory_usage_percent;
+                $('#memory-usage-gauge .gauge-text').text(memoryUsage + '%');
+                updateGauge('memory-usage-gauge', memoryUsage);
+
+                // 更新存储空间信息
+                var diskTotalGB = data.disk_total_gb;
+                var diskUsedGB = data.disk_used_gb;
+                var diskUsagePercent = data.disk_usage_percent;
+
+                var diskTotalDisplay = formatStorage(diskTotalGB);
+                var diskUsedDisplay = formatStorage(diskUsedGB);
+
+                $('#disk-usage-value').text(diskUsedDisplay + ' / ' + diskTotalDisplay);
+                $('#disk-usage-progress .gauge-text').text(diskUsagePercent + '%'); // 更新存储空间百分比
+                updateGauge('disk-usage-progress', diskUsagePercent); // 更新存储空间进度条
+
+                // 更新网络上传和下载速率
+                var netIoRecv = data.net_io_recv;
+                var netIoSent = data.net_io_sent;
+
+                $('#upload-speed').html('<span>↑</span> ' + formatSpeed(netIoSent));
+                $('#download-speed').html('<span>↓</span> ' + formatSpeed(netIoRecv));
+
+                // 更新图表数据
+                if (isUpdating) {
+                    var currentTime = new Date().getTime();
+                    xAxisData.push(currentTime);
+                    yAxisData1.push(netIoSent);
+                    yAxisData2.push(netIoRecv);
+
+                    // 更新最大速率值
+                    maxSpeed = Math.max(maxSpeed, netIoSent, netIoRecv);
+
+                    // 清理超过15秒的数据点
+                    var oneMinuteAgo = currentTime - 15000;
+                    while (xAxisData.length > 0 && xAxisData[0] < oneMinuteAgo) {
+                        xAxisData.shift();
+                        yAxisData1.shift();
+                        yAxisData2.shift();
+                    }
+
+                    updateChart();
+                }
+
+                // 更新内存总量和已用内存信息
+                var memoryTotalGB = data.memory_total_gb;
+                var memoryUsedGB = data.memory_used_gb;
+
+                var memoryTotalDisplay = Math.round(memoryTotalGB) + ' GB';
+                var memoryUsedDisplay = memoryUsedGB.toFixed(1) + ' GB';
+
+                $('#memory-used-total').text(memoryUsedDisplay + ' / ' + memoryTotalDisplay);
+            },
+            error: function(xhr, status, error) {
+                console.error('获取系统资源出错:', error);
+            }
+        });
+    }
+
+    function updateSystemProcesses() {
+        $.ajax({
+            url: '/api/system_processes',
+            method: 'GET',
+            success: function(data) {
+                var processes = data.processes;
+                var tbody = $('#system-processes');
+                tbody.empty();
+
+                var friendlyNames = {
+                    'main.py': '主程序',
+                    'report_versions.py': '版本统计及状态检测服务',
+                    'app.py': 'WEB服务',
+                    'sync.py': '下载目录监控服务',
+                    'scan_media.py': '扫描媒体库',
+                    'subscr.py': '刷新豆瓣兴趣',
+                    'check_subscr.py': '刷新正在订阅',
+                    'tmdb_id.py': '刷新TMDB ID',
+                    'dateadded.py': '更新添加日期',
+                    'actor_nfo.py': '演职人员更新',
+                    'scrape_metadata.py': '刮削媒体元数据',
+                    'episodes_nfo.py': '剧集演职人员更新',
+                    'auto_delete_tasks.py': '删除已完成下载任务',
+                    'check_db_dir.py': '检测数据库及目录',
+                    'database_manager.py': '数据库初始化管理程序',
+                    'indexer.py': '订阅资源索引程序',
+                    'downloader.py': '种子下载程序',
+                    'movie_bthd.py': '高清影视之家 索引程序',
+                    'tvshow_hdtv.py': '高清剧集网 索引程序',
+                    'movie_tvshow_btys.py': 'BT影视 索引程序',
+                    'movie_tvshow_bt0.py': '不太灵影视 索引程序',
+                    'movie_tvshow_gy.py': '观影 索引程序',
+                    'movie_tvshow_btsj6.py': 'BT世界网 索引程序',
+                    'movie_tvshow_1lou.py': 'BT之家(1LOU) 索引程序',
+                    'movie_tvshow_seedhub.py': 'SeedHub 索引程序',
+                    'movie_tvshow_jackett.py': 'Jackett 索引程序',
+                    'download_task_adder.py': '添加下载任务',
+                    'xunlei.py': '迅雷-添加下载任务',
+                    'xunlei_torrent.py': '迅雷-种子监听服务',
+                    'site_test.py': '站点状态检测服务',
+                    'chromedriver': 'Chrome驱动',
+                    'chrome': 'Chrome浏览器'
+                };
+
+                processes.forEach(function(proc) {
+                    // 过滤进程，只保留 name 为 python、chromedriver 或包含 chrome 的进程
+                    // 同时过滤掉 report_versions.py 进程
+                    if ((proc.name === 'python' || proc.name === 'chromedriver' || proc.name.toLowerCase().includes('chrome')) 
+                        && !(proc.name === 'python' && proc.file_name === 'report_versions.py')) {
+                        var row = $('<tr>');
+                        var fileName = proc.file_name || 'N/A';
+                        var friendlyName = friendlyNames[fileName] || friendlyNames[proc.name] || fileName;
+
+                        // 如果进程名称是 chromedriver 或 chrome 相关的，使用中文任务名称
+                        if (proc.name === 'chromedriver') {
+                            friendlyName = 'Chrome驱动';
+                        } else if (proc.name.toLowerCase().includes('chrome')) {
+                            friendlyName = 'Chrome浏览器';
+                        }
+
+                        row.append($('<td>').text(friendlyName)); // 任务名称
+                        row.append($('<td>').text(proc.cpu_percent.toFixed(2) + '%')); // CPU占用率
+                        row.append($('<td>').text(proc.memory_percent.toFixed(2) + '%')); // 内存占用率
+                        row.append($('<td>').text(proc.uptime)); // 运行时长
+                        tbody.append(row);
+                    }
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error('获取系统进程出错:', error);
+            }
+        });
+    }
+
+    // 站点状态相关函数
+    function loadSiteStatus() {
+        // 检查是否正在进行手动检测，如果是则不执行自动刷新
+        if ($('#site-status-content .spinner-border:contains("检测中")').length > 0) {
+            return;
+        }
+        
+        $.ajax({
+            url: '/api/site_status',
+            method: 'GET',
+            success: function(data) {
+                renderSiteStatus(data);
+            },
+            error: function(xhr, status, error) {
+                console.error('加载站点状态失败:', error);
+                $('#site-status-content').html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> 加载站点状态失败: ${error}
+                    </div>
+                `);
+            }
+        });
+    }
+
+    function renderSiteStatus(data) {
+        // 检查是否有错误信息
+        if (data.error) {
+            $('#site-status-content').html(`
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                </div>
+            `);
+            return;
+        }
+
+        let html = `
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>站点</th>
+                            <th>状态</th>
+                            <th>启用</th>
+                            <th>URL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (data.sites && Array.isArray(data.sites)) {
+            data.sites.forEach(function(site) {
+                // 使用映射获取中文名称，如果不存在则使用原始名称
+                const displayName = siteNameMap[site.name] || site.name;
+                
+                const status = data.status && data.status.hasOwnProperty(site.name) ? 
+                    data.status[site.name] : null;
+                
+                // 站点状态显示样式
+                let statusHtml = '';
+                if (status === true) {
+                    statusHtml = '<span class="status-indicator status-running"></span>';
+                } else if (status === false) {
+                    statusHtml = '<span class="status-indicator status-stopped"></span>';
+                } else {
+                    statusHtml = '<span class="status-indicator status-unknown"></span>';
+                }
+
+                const enabledHtml = site.enabled ? 
+                    '<span class="status-indicator status-running"></span>' : 
+                    '<span class="status-indicator status-stopped"></span>';
+
+                html += `
+                    <tr>
+                        <td>${displayName}</td>
+                        <td>${statusHtml}</td>
+                        <td>${enabledHtml}</td>
+                        <td><a href="${site.url}" target="_blank">${site.url}</a></td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `
+                    </tbody>
+                </table>
+        `;
+
+        if (data.last_checked) {
+            html += `<small class="text-muted">最后检查时间: ${data.last_checked}</small>`;
+        }
+
+        html += `</div>`;
+        
+        $('#site-status-content').html(html);
+    }
+
+    // 站点状态检测刷新函数
+    function checkSiteStatus() {
+        // 添加图标旋转动画
+        $('#refresh-site-status').addClass('rotating');
+        
+        // 显示检测中状态（只在内容区域）
+        $('#site-status-content').html(`
+            <div class="d-flex justify-content-center align-items-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">后台检测中...预计1分钟,可以执行其他操作或等待检测完成</span>
+                </div>
+                <span class="ms-2">后台检测中...预计1分钟,可以执行其他操作或等待检测完成</span>
+            </div>
+        `);
+        
+        $.ajax({
+            url: '/api/check_site_status',
+            method: 'POST',
+            success: function(data) {
+                if (data.error) {
+                    showToast('检查失败: ' + data.error, 'error');
+                    // 显示错误信息
+                    $('#site-status-content').html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                        </div>
+                    `);
+                } else {
+                    // 直接渲染站点状态，而不是调用loadSiteStatus
+                    renderSiteStatus(data);
+                    showToast('站点状态检查完成', 'success');
+                }
+                // 移除图标旋转动画
+                $('#refresh-site-status').removeClass('rotating');
+            },
+            error: function(xhr, status, error) {
+                showToast('检查失败: ' + error, 'error');
+                // 显示错误信息
+                $('#site-status-content').html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> 检查失败: ${error}
+                    </div>
+                `);
+                // 移除图标旋转动画
+                $('#refresh-site-status').removeClass('rotating');
+            }
+        });
+    }
+
+    // 绑定刷新图标事件
+    $('#refresh-site-status').on('click', function() {
+        checkSiteStatus();
+    });
+
+    function updateGauge(id, value) {
+        var gauge = document.getElementById(id);
+        if (gauge) {
+            var foreground = gauge.querySelector('.foreground');
+            if (foreground) {
+                var dashoffset = 251.32741228718345 - (value / 100 * 251.32741228718345);
+                foreground.style.strokeDashoffset = dashoffset;
+    
+                // 根据值动态设置颜色
+                if (value >= 90) {
+                    foreground.style.stroke = '#dc3545'; // 红色
+                } else if (value >= 80) {
+                    foreground.style.stroke = '#ff7507'; // 橙色
+                } else {
+                    foreground.style.stroke = '#007bff'; // 蓝色（默认）
+                }
+            } else {
+                console.error('未找到仪表的前景元素:', id);
+            }
+        } else {
+            console.error('未找到测量元件:', id);
+        }
+    }
+
+    function formatSpeed(speedInKB) {
+        if (speedInKB >= 1024) {
+            return (speedInKB / 1024).toFixed(2) + ' MB/s';
+        } else {
+            return speedInKB.toFixed(2) + ' KB/s';
+        }
+    }
+
+    function formatStorage(sizeInGB) {
+        if (sizeInGB >= 1024) {
+            return (sizeInGB / 1024).toFixed(1) + ' TB';
+        } else {
+            return sizeInGB.toFixed(1) + ' GB';
+        }
+    }
+
+    // 初始化所有模块
+    updateSystemResources();
+    updateSystemProcesses();
+    loadSiteStatus(); // 加载站点状态
+
+    setInterval(updateSystemResources, 4000);
+    setInterval(updateSystemProcesses, 1000);
+    setInterval(loadSiteStatus, 6000);
+});
+</script>
+{% endblock %}
