@@ -41,7 +41,7 @@ RUN mkdir -p /tmp/log
 RUN apk add --no-cache git
 
 # 克隆 Git 仓库到 /app 目录
-RUN git clone https://github.com/smysong/mediamaster-v2.git /app
+RUN git clone https://github.com/mybdk01/mediamaster-v2.git /app
 
 # 创建虚拟环境
 RUN python3 -m venv /app/venv
