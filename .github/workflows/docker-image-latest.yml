@@ -26,4 +26,4 @@ jobs:
     - name: Build and push the Docker image
       run: |
         docker buildx create --name mybuilder --use
-        docker buildx build --platform linux/amd64,linux/arm64 -t smysong/mediamaster-v2:latest --push .
+        docker buildx build --platform linux/amd64,linux/arm64 -t mybdk01/mediamaster-v2:latest --push .
