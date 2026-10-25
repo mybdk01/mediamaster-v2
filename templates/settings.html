@@ -68,7 +68,19 @@
                                     
                                     {% if key == 'notification_api_key' %}
                                     <div class="form-text">
-                                        <i class="bi bi-info-circle me-1"></i> Bark API密钥用于接收推送通知。
+                                        <i class="bi bi-info-circle me-1"></i> Bark API密钥，用于 iOS 推送通知。获取方式：在 Bark App 中复制设备 Key。
+                                    </div>
+                                    {% elif key == 'dingtalk_webhook' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> 钉钉机器人 Webhook 地址。在钉钉群中添加「自定义机器人」后复制 Webhook 地址。
+                                    </div>
+                                    {% elif key == 'wecom_webhook' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> 企业微信机器人 Webhook 地址。在企业微信群中添加「群机器人」后复制 Webhook 地址。
+                                    </div>
+                                    {% elif key == 'feishu_webhook' %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i> 飞书机器人 Webhook 地址。在飞书群中添加「自定义机器人」后复制 Webhook 地址。
                                     </div>
                                     {% endif %}
                                 </div>
@@ -957,12 +969,18 @@
 
         // 动态显示/隐藏下载器相关配置项
         function toggleDownloaderFields() {
-            // 根据 notification 开关显示/隐藏 notification_api_key
+            // 根据 notification 开关显示/隐藏通知相关配置项
             var notificationChecked = $('#notification').is(':checked');
             if (notificationChecked) {
                 $('#form-group-notification_api_key').show();
+                $('#form-group-dingtalk_webhook').show();
+                $('#form-group-wecom_webhook').show();
+                $('#form-group-feishu_webhook').show();
             } else {
                 $('#form-group-notification_api_key').hide();
+                $('#form-group-dingtalk_webhook').hide();
+                $('#form-group-wecom_webhook').hide();
+                $('#form-group-feishu_webhook').hide();
             }
 
             // 根据 actor_nfo 开关显示/隐藏相关配置项

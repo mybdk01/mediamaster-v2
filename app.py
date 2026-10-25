@@ -1847,6 +1847,9 @@ GROUP_MAPPING = {
     "消息通知": {
         "notification": {"type": "switch", "label": "消息通知"},
         "notification_api_key": {"type": "password", "label": "Bark API密钥"},
+        "dingtalk_webhook": {"type": "text", "label": "钉钉机器人 Webhook 地址"},
+        "wecom_webhook": {"type": "text", "label": "企业微信机器人 Webhook 地址"},
+        "feishu_webhook": {"type": "text", "label": "飞书机器人 Webhook 地址"},
     },
     "媒体添加时间": {
         "dateadded": {"type": "switch", "label": "发行日期作为媒体添加日期"}
