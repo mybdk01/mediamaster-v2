@@ -37,11 +37,8 @@ ENV LC_ALL=zh_CN.UTF-8
 # 创建日志保存目录
 RUN mkdir -p /tmp/log
 
-# 安装 git 用于克隆仓库
-RUN apk add --no-cache git
-
-# 克隆 Git 仓库到 /app 目录
-RUN git clone https://github.com/mybdk01/mediamaster-v2.git /app
+# 直接复制本地源码到 /app 目录（无需网络克隆）
+COPY . /app
 
 # 创建虚拟环境
 RUN python3 -m venv /app/venv
